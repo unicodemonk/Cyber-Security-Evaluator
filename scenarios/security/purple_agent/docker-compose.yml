@@ -1,18 +1,33 @@
 version: '3.9'
-
 services:
   api_app:
     build:
       context: ./api_app
-    expose:
+    ports:
       - "8000:8000"
 
-  modsec_proxy:
-    image: owasp/modsecurity-crs:nginx
-    ports:
-      - "8080:80"
+  modsec2-apache:
+    container_name: modsec2-apache
+    image: owasp/modsecurity-crs:apache
+    environment:
+      SERVERNAME: modsec2-apache
+      BACKEND: http://api_app:8000
+      PORT: "8080"
+      MODSEC_RULE_ENGINE: DetectionOnly
+      BLOCKING_PARANOIA: 2
+      TZ: "${TZ}"
+      ERRORLOG: "/var/log/error.log"
+      ACCESSLOG: "/var/log/access.log"
+      MODSEC_AUDIT_LOG_FORMAT: Native
+      MODSEC_AUDIT_LOG_TYPE: Serial
+      MODSEC_AUDIT_LOG: "/var/log/modsec_audit.log"
+      MODSEC_TMP_DIR: "/tmp"
+      MODSEC_RESP_BODY_ACCESS: "On"
+      MODSEC_RESP_BODY_MIMETYPE: "text/plain text/html text/xml application/json"
+      COMBINED_FILE_SIZES: "65535"
     volumes:
-      - ./modsecurity/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./modsecurity/modsecurity.conf:/etc/nginx/modsecurity.conf:ro
+      []
+    ports:
+      - "80:8080"
     depends_on:
       - api_app

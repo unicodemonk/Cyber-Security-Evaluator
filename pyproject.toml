@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agentbeats-tutorial"
+name = "security_evaluator"
 version = "0.1.0"
-description = "Agentbeats Tutorial"
+description = "A Analyzer for security"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
