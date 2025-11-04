@@ -1,0 +1,75 @@
+# Configuration for SQL Injection Detection Benchmark
+
+# Evaluation settings
+evaluation:
+  # Mode: "fixed" or "adaptive"
+  mode: "adaptive"
+
+  # Total number of tests to execute
+  test_budget: 100
+
+  # Maximum time for entire evaluation (seconds)
+  timeout_seconds: 300
+
+  # Timeout per individual test (seconds)
+  per_test_timeout_seconds: 10.0
+
+  # Random seed for reproducibility (null for random)
+  random_seed: null
+
+  # Specific categories to test (null for all)
+  # Options: classic_sqli, blind_sqli, union_based, time_based, boolean_based,
+  #          error_based, second_order, orm_injection, nosql_injection, stored_procedure
+  categories: null
+
+  # Specific languages to test (null for all)
+  # Options: python, javascript, java, php, ruby, go, csharp
+  languages: null
+
+# Adaptive testing configuration (only used when mode="adaptive")
+adaptive:
+  # Number of tests in initial exploration phase
+  initial_exploration_size: 20
+
+  # F1 threshold below which a category is considered weak
+  weak_threshold: 0.6
+
+  # Percentage of tests to allocate to weak categories (0.0 to 1.0)
+  focus_percentage: 0.6
+
+  # Maximum number of testing rounds
+  max_rounds: 5
+
+  # F1 change threshold for performance stability
+  stability_threshold: 0.05
+
+  # Minimum samples per category per round
+  min_category_samples: 5
+
+# Dataset configuration
+dataset:
+  # Root directory containing datasets
+  root: "datasets/sql_injection"
+
+  # Dataset structure
+  vulnerable_dir: "vulnerable_code"
+  secure_dir: "secure_code"
+
+# Logging configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: null  # Set to path for file logging, null for console only
+
+# Server configuration
+server:
+  host: "127.0.0.1"
+  port: 9009
+  card_url: "http://127.0.0.1:9009/card"
+
+# Purple Agent configuration (for testing)
+purple_agent:
+  baseline:
+    host: "127.0.0.1"
+    port: 8000
+    endpoint: "http://127.0.0.1:8000/detect"

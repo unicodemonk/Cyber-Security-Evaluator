@@ -1,0 +1,217 @@
+{
+  "language": "python",
+  "vulnerability_type": "sql_injection",
+  "description": "Secure code samples in Python that properly prevent SQL injection",
+  "samples": [
+    {
+      "id": "py_secure_001",
+      "category": "classic_sqli",
+      "code": "def get_user(user_id):\n    query = \"SELECT * FROM users WHERE id=?\"\n    cursor.execute(query, (user_id,))\n    return cursor.fetchone()",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Properly parameterized query using placeholders",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "Parameterized query",
+        "safe_pattern": "cursor.execute with tuple parameters"
+      }
+    },
+    {
+      "id": "py_secure_002",
+      "category": "classic_sqli",
+      "code": "def search_products(keyword):\n    sql = \"SELECT * FROM products WHERE name LIKE ?\"\n    pattern = f\"%{keyword}%\"\n    return db.execute(sql, (pattern,)).fetchall()",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Safe LIKE query with parameterization",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "Parameterized LIKE query",
+        "safe_pattern": "Pattern constructed safely, then parameterized"
+      }
+    },
+    {
+      "id": "py_secure_003",
+      "category": "classic_sqli",
+      "code": "username = request.POST['username']\npassword = request.POST['password']\nquery = \"SELECT * FROM users WHERE username=? AND password=?\"\ncursor.execute(query, (username, password))",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Secure authentication query with proper parameterization",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "Parameterized authentication",
+        "safe_pattern": "All user inputs parameterized"
+      }
+    },
+    {
+      "id": "py_secure_004",
+      "category": "blind_sqli",
+      "code": "def check_user_exists(email):\n    query = \"SELECT COUNT(*) FROM users WHERE email=?\"\n    result = cursor.execute(query, (email,)).fetchone()\n    return result[0] > 0",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Safe email lookup with parameterized query",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "Parameterized query",
+        "safe_pattern": "No string concatenation"
+      }
+    },
+    {
+      "id": "py_secure_005",
+      "category": "union_based",
+      "code": "def get_article(article_id):\n    # Validate input type\n    article_id = int(article_id)\n    query = \"SELECT title, content FROM articles WHERE id=?\"\n    cursor.execute(query, (article_id,))\n    return cursor.fetchone()",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Type validation plus parameterized query",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "Input validation and parameterization",
+        "safe_pattern": "int() conversion + parameterized query"
+      }
+    },
+    {
+      "id": "py_secure_006",
+      "category": "time_based",
+      "code": "def verify_token(token):\n    sql = \"SELECT user_id FROM sessions WHERE token=?\"\n    cursor.execute(sql, (token,))\n    return cursor.fetchone() is not None",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Secure token verification with parameterized query",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "Parameterized token lookup",
+        "safe_pattern": "No string formatting"
+      }
+    },
+    {
+      "id": "py_secure_007",
+      "category": "second_order",
+      "code": "def update_profile(user_id, bio):\n    # First query: Store bio (parameterized)\n    cursor.execute(\"UPDATE users SET bio=? WHERE id=?\", (bio, user_id))\n    # Second query: Use stored bio safely (still parameterized)\n    stored_bio = cursor.execute(\"SELECT bio FROM users WHERE id=?\", (user_id,)).fetchone()[0]\n    cursor.execute(\"INSERT INTO profile_history (user_id, bio) VALUES (?, ?)\", (user_id, stored_bio))\n    db.commit()",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Properly handles stored data with consistent parameterization",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "All queries parameterized",
+        "safe_pattern": "Never trusts even database-sourced data"
+      }
+    },
+    {
+      "id": "py_secure_008",
+      "category": "orm_injection",
+      "code": "def filter_products(category, sort_by):\n    # Django ORM - safe usage\n    allowed_sort_fields = ['name', 'price', 'date_created']\n    sort_field = sort_by if sort_by in allowed_sort_fields else 'name'\n    products = Product.objects.filter(category=category).order_by(sort_field)\n    return products",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Safe ORM usage with whitelist validation",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "ORM built-in protections + whitelist",
+        "safe_pattern": "filter() and order_by() with validated inputs"
+      }
+    },
+    {
+      "id": "py_secure_009",
+      "category": "stored_procedure",
+      "code": "def call_user_report(user_id, report_type):\n    # Using parameterized stored procedure call\n    cursor.callproc('generate_report', [user_id, report_type])\n    return cursor.fetchall()",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Safe stored procedure call with parameters",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "callproc with parameter list",
+        "safe_pattern": "Database driver handles parameter escaping"
+      }
+    },
+    {
+      "id": "py_secure_010",
+      "category": "error_based",
+      "code": "def get_product_details(product_id):\n    try:\n        product_id = int(product_id)\n        query = \"SELECT * FROM products WHERE id=?\"\n        result = cursor.execute(query, (product_id,)).fetchone()\n        return result\n    except Exception as e:\n        # Generic error message, log details securely\n        logger.error(f\"Database error: {e}\")\n        return {\"error\": \"Unable to retrieve product details\"}",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Secure error handling with generic messages",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "Parameterized query + generic error messages",
+        "safe_pattern": "No information disclosure in errors"
+      }
+    },
+    {
+      "id": "py_secure_011",
+      "category": "boolean_based",
+      "code": "def user_has_permission(user_id, resource):\n    query = \"SELECT COUNT(*) FROM permissions WHERE user_id=? AND resource=?\"\n    count = cursor.execute(query, (user_id, resource)).fetchone()[0]\n    return count > 0",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Secure permission check with parameterized query",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "All inputs parameterized",
+        "safe_pattern": "No dynamic query construction"
+      }
+    },
+    {
+      "id": "py_secure_012",
+      "category": "nosql_injection",
+      "code": "def find_user(username, password):\n    # MongoDB - proper query structure\n    query = {'username': username, 'password': password}\n    user = db.users.find_one(query)\n    return user",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Safe MongoDB query without $where operator",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "Proper MongoDB query syntax",
+        "safe_pattern": "Dictionary query without JavaScript execution"
+      }
+    },
+    {
+      "id": "py_secure_013",
+      "category": "classic_sqli",
+      "code": "from sqlalchemy import text\n\ndef get_orders(customer_id, status):\n    query = text(\"SELECT * FROM orders WHERE customer_id=:cid AND status=:stat\")\n    result = engine.execute(query, cid=customer_id, stat=status)\n    return result.fetchall()",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "SQLAlchemy with named parameters",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "SQLAlchemy text() with named params",
+        "safe_pattern": "Named parameter binding"
+      }
+    },
+    {
+      "id": "py_secure_014",
+      "category": "classic_sqli",
+      "code": "import re\n\ndef search_by_tag(tag):\n    # Whitelist validation\n    if not re.match(r'^[a-zA-Z0-9_-]+$', tag):\n        raise ValueError(\"Invalid tag format\")\n    query = \"SELECT * FROM posts WHERE tags LIKE ?\"\n    return cursor.execute(query, (f'%{tag}%',)).fetchall()",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Input validation with regex plus parameterized query",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "Defense in depth: validation + parameterization",
+        "safe_pattern": "Multiple layers of protection"
+      }
+    },
+    {
+      "id": "py_secure_015",
+      "category": "classic_sqli",
+      "code": "from django.db.models import Q\n\ndef search_users(search_term):\n    # Django ORM - safe complex queries\n    users = User.objects.filter(\n        Q(username__icontains=search_term) | Q(email__icontains=search_term)\n    )\n    return users",
+      "is_vulnerable": false,
+      "severity": null,
+      "cwe_id": null,
+      "description": "Django ORM with Q objects for complex queries",
+      "remediation": null,
+      "metadata": {
+        "security_feature": "ORM query builder",
+        "safe_pattern": "Q objects automatically parameterized"
+      }
+    }
+  ]
+}

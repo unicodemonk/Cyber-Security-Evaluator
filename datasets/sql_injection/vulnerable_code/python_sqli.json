@@ -1,0 +1,175 @@
+{
+  "language": "python",
+  "vulnerability_type": "sql_injection",
+  "description": "SQL injection vulnerable code samples in Python",
+  "samples": [
+    {
+      "id": "py_classic_001",
+      "category": "classic_sqli",
+      "code": "def get_user(user_id):\n    query = f\"SELECT * FROM users WHERE id={user_id}\"\n    cursor.execute(query)\n    return cursor.fetchone()",
+      "is_vulnerable": true,
+      "severity": "critical",
+      "cwe_id": "CWE-89",
+      "description": "Classic SQL injection via f-string interpolation without sanitization",
+      "remediation": "Use parameterized queries: cursor.execute('SELECT * FROM users WHERE id=?', (user_id,))",
+      "metadata": {
+        "attack_vector": "Attacker can inject: 1 OR 1=1",
+        "impact": "Full database access"
+      }
+    },
+    {
+      "id": "py_classic_002",
+      "category": "classic_sqli",
+      "code": "def search_products(keyword):\n    sql = \"SELECT * FROM products WHERE name LIKE '%\" + keyword + \"%'\"\n    return db.execute(sql).fetchall()",
+      "is_vulnerable": true,
+      "severity": "critical",
+      "cwe_id": "CWE-89",
+      "description": "String concatenation in SQL query with user input",
+      "remediation": "Use parameterized queries with proper escaping",
+      "metadata": {
+        "attack_vector": "Inject: ' OR '1'='1",
+        "impact": "Data exfiltration"
+      }
+    },
+    {
+      "id": "py_classic_003",
+      "category": "classic_sqli",
+      "code": "username = request.POST['username']\npassword = request.POST['password']\nquery = \"SELECT * FROM users WHERE username='%s' AND password='%s'\" % (username, password)\ncursor.execute(query)",
+      "is_vulnerable": true,
+      "severity": "critical",
+      "cwe_id": "CWE-89",
+      "description": "Authentication bypass via SQL injection using % formatting",
+      "remediation": "Use parameterized queries for authentication",
+      "metadata": {
+        "attack_vector": "Username: admin' --",
+        "impact": "Authentication bypass"
+      }
+    },
+    {
+      "id": "py_blind_001",
+      "category": "blind_sqli",
+      "code": "def check_user_exists(email):\n    query = f\"SELECT COUNT(*) FROM users WHERE email='{email}'\"\n    result = cursor.execute(query).fetchone()\n    return result[0] > 0",
+      "is_vulnerable": true,
+      "severity": "high",
+      "cwe_id": "CWE-89",
+      "description": "Boolean-based blind SQL injection",
+      "remediation": "Use parameterized queries to prevent injection",
+      "metadata": {
+        "attack_vector": "test@example.com' AND SLEEP(5) AND '1'='1",
+        "impact": "Information disclosure via timing"
+      }
+    },
+    {
+      "id": "py_union_001",
+      "category": "union_based",
+      "code": "def get_article(article_id):\n    query = \"SELECT title, content FROM articles WHERE id=\" + str(article_id)\n    cursor.execute(query)\n    return cursor.fetchone()",
+      "is_vulnerable": true,
+      "severity": "critical",
+      "cwe_id": "CWE-89",
+      "description": "UNION-based SQL injection vulnerability",
+      "remediation": "Use parameterized queries with type validation",
+      "metadata": {
+        "attack_vector": "1 UNION SELECT username,password FROM users",
+        "impact": "Complete database enumeration"
+      }
+    },
+    {
+      "id": "py_time_001",
+      "category": "time_based",
+      "code": "def verify_token(token):\n    sql = f\"SELECT user_id FROM sessions WHERE token='{token}'\"\n    cursor.execute(sql)\n    return cursor.fetchone() is not None",
+      "is_vulnerable": true,
+      "severity": "high",
+      "cwe_id": "CWE-89",
+      "description": "Time-based blind SQL injection",
+      "remediation": "Use parameterized queries for token verification",
+      "metadata": {
+        "attack_vector": "' OR IF(1=1, SLEEP(5), 0) OR '",
+        "impact": "Data extraction via timing side-channel"
+      }
+    },
+    {
+      "id": "py_second_order_001",
+      "category": "second_order",
+      "code": "def update_profile(user_id, bio):\n    # First query: Store bio (escaped)\n    cursor.execute(\"UPDATE users SET bio=? WHERE id=?\", (bio, user_id))\n    # Second query: Use stored bio unsafely\n    stored_bio = cursor.execute(f\"SELECT bio FROM users WHERE id={user_id}\").fetchone()[0]\n    cursor.execute(f\"INSERT INTO profile_history (user_id, bio) VALUES ({user_id}, '{stored_bio}')\")\n    db.commit()",
+      "is_vulnerable": true,
+      "severity": "high",
+      "cwe_id": "CWE-89",
+      "description": "Second-order SQL injection via stored data",
+      "remediation": "Always use parameterized queries, even with database-sourced data",
+      "metadata": {
+        "attack_vector": "Store malicious bio, trigger on retrieval",
+        "impact": "Delayed injection execution"
+      }
+    },
+    {
+      "id": "py_orm_001",
+      "category": "orm_injection",
+      "code": "def filter_products(category, sort_by):\n    # Django ORM - unsafe .extra() usage\n    products = Product.objects.extra(\n        where=[f\"category='{category}'\"],\n        order_by=[sort_by]\n    )\n    return products",
+      "is_vulnerable": true,
+      "severity": "high",
+      "cwe_id": "CWE-89",
+      "description": "SQL injection via ORM unsafe methods",
+      "remediation": "Use ORM query methods: Product.objects.filter(category=category).order_by(sort_by)",
+      "metadata": {
+        "attack_vector": "Inject via sort_by parameter",
+        "impact": "ORM bypass and SQL injection"
+      }
+    },
+    {
+      "id": "py_stored_proc_001",
+      "category": "stored_procedure",
+      "code": "def call_user_report(user_id, report_type):\n    query = f\"CALL generate_report({user_id}, '{report_type}')\"\n    cursor.execute(query)\n    return cursor.fetchall()",
+      "is_vulnerable": true,
+      "severity": "high",
+      "cwe_id": "CWE-89",
+      "description": "SQL injection in stored procedure call",
+      "remediation": "Use parameterized stored procedure calls",
+      "metadata": {
+        "attack_vector": "Inject via report_type parameter",
+        "impact": "Stored procedure exploitation"
+      }
+    },
+    {
+      "id": "py_error_based_001",
+      "category": "error_based",
+      "code": "def get_product_details(product_id):\n    try:\n        query = f\"SELECT * FROM products WHERE id={product_id}\"\n        result = cursor.execute(query).fetchone()\n        return result\n    except Exception as e:\n        # Error message exposed to user\n        return {\"error\": str(e)}",
+      "is_vulnerable": true,
+      "severity": "high",
+      "cwe_id": "CWE-89",
+      "description": "Error-based SQL injection with information disclosure",
+      "remediation": "Use parameterized queries and generic error messages",
+      "metadata": {
+        "attack_vector": "Trigger SQL errors to extract schema info",
+        "impact": "Database structure disclosure"
+      }
+    },
+    {
+      "id": "py_boolean_001",
+      "category": "boolean_based",
+      "code": "def user_has_permission(user_id, resource):\n    query = f\"SELECT COUNT(*) FROM permissions WHERE user_id={user_id} AND resource='{resource}'\"\n    count = cursor.execute(query).fetchone()[0]\n    return count > 0",
+      "is_vulnerable": true,
+      "severity": "critical",
+      "cwe_id": "CWE-89",
+      "description": "Boolean-based blind SQL injection in permission check",
+      "remediation": "Use parameterized queries for security-critical operations",
+      "metadata": {
+        "attack_vector": "Manipulate boolean conditions",
+        "impact": "Authorization bypass"
+      }
+    },
+    {
+      "id": "py_nosql_001",
+      "category": "nosql_injection",
+      "code": "def find_user(username, password):\n    # MongoDB injection via string interpolation\n    query = {\"$where\": f\"this.username == '{username}' && this.password == '{password}'\"}\n    user = db.users.find_one(query)\n    return user",
+      "is_vulnerable": true,
+      "severity": "critical",
+      "cwe_id": "CWE-943",
+      "description": "NoSQL injection via $where operator",
+      "remediation": "Use proper MongoDB query syntax: db.users.find_one({'username': username, 'password': password})",
+      "metadata": {
+        "attack_vector": "Inject JavaScript in $where clause",
+        "impact": "NoSQL injection and authentication bypass"
+      }
+    }
+  ]
+}
