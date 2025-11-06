@@ -77,17 +77,42 @@ class SQLInjectionJudge(GreenAgent):
     - Adaptive mode: Autonomous decision-making with strategic test allocation
     """
 
-    def __init__(self, dataset_root: str | Path):
+    def __init__(self, dataset_root: str | Path, enable_llm: bool = True):
         """
         Initialize the SQL Injection Judge.
 
         Args:
             dataset_root: Root directory containing dataset JSON files
+            enable_llm: Whether to enable LLM integration (requires API key)
         """
         super().__init__()
         self.dataset_manager = DatasetManager(dataset_root)
         self.scoring_engine = ScoringEngine()
         self.adaptive_planner: AdaptiveTestPlanner | None = None
+
+        # LLM Integration (Optional - for enhanced analysis)
+        self.llm_enabled = False
+        self.llm_client = None
+        self.prompt_manager = None
+
+        if enable_llm:
+            try:
+                from llm import LLMClient, load_prompt_manager
+
+                # Try to initialize LLM client (requires API key)
+                try:
+                    self.llm_client = LLMClient()
+                    self.prompt_manager = load_prompt_manager()
+                    self.llm_enabled = True
+                    logger.info("LLM integration enabled (OpenAI)")
+                except ValueError as e:
+                    # No API key available
+                    logger.info("LLM integration disabled (no API key)")
+                except Exception as e:
+                    logger.warning(f"LLM initialization failed: {e}")
+
+            except ImportError:
+                logger.warning("LLM package not available")
 
         # Load datasets
         logger.info("Loading datasets...")

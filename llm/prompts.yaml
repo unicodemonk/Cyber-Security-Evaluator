@@ -1,0 +1,381 @@
+# Prompt Repository
+#
+# Structure:
+#   prompt_key:
+#     system: System prompt (optional)
+#     user: User prompt
+#     placeholders: List of required placeholder names
+#     response_format: Expected response format (text, json, structured)
+#     temperature: Override default temperature (optional)
+#     max_tokens: Override default max_tokens (optional)
+#     examples: Few-shot examples (optional)
+#     metadata: Additional metadata (optional)
+
+# ============================================================================
+# Security Analysis Prompts
+# ============================================================================
+
+analyze_sql_injection:
+  system: |
+    You are a security expert specializing in SQL injection vulnerability detection.
+    Analyze code carefully and identify potential SQL injection vulnerabilities.
+
+  user: |
+    Analyze the following {{language}} code for SQL injection vulnerabilities:
+
+    ```{{language}}
+    {{code}}
+    ```
+
+    Category: {{category}}
+
+    Provide:
+    1. Is it vulnerable? (yes/no)
+    2. Confidence score (0.0-1.0)
+    3. Explanation of why it's vulnerable or safe
+    4. Recommended fix (if vulnerable)
+
+  placeholders:
+    - code
+    - language
+    - category
+
+  response_format: json
+  temperature: 0.2
+  max_tokens: 1000
+
+  metadata:
+    domain: security
+    task: detection
+    requires_expertise: true
+
+
+explain_vulnerability:
+  system: |
+    You are a security educator. Explain vulnerabilities clearly to developers
+    with varying levels of security knowledge.
+
+  user: |
+    Explain this {{vulnerability_type}} vulnerability:
+
+    Code:
+    ```{{language}}
+    {{code}}
+    ```
+
+    Explanation level: {{level}}
+
+    {{#include_remediation}}
+    Include detailed remediation steps.
+    {{/include_remediation}}
+
+    {{#include_examples}}
+    Provide examples of secure alternatives.
+    {{/include_examples}}
+
+  placeholders:
+    - vulnerability_type
+    - code
+    - language
+    - level  # beginner, intermediate, expert
+    - include_remediation  # boolean
+    - include_examples  # boolean
+
+  response_format: text
+  temperature: 0.5
+  max_tokens: 2000
+
+
+generate_test_cases:
+  system: |
+    You are a QA engineer specialized in security testing.
+    Generate comprehensive test cases for security vulnerabilities.
+
+  user: |
+    Generate {{num_cases}} test cases for {{vulnerability_type}} in {{language}}.
+
+    Requirements:
+    {{#requirements}}
+    - {{.}}
+    {{/requirements}}
+
+    Include both vulnerable and secure examples.
+    Return as JSON array with fields: code, is_vulnerable, category, description.
+
+  placeholders:
+    - num_cases
+    - vulnerability_type
+    - language
+    - requirements  # list of strings
+
+  response_format: json
+  temperature: 0.7
+  max_tokens: 3000
+
+  metadata:
+    domain: testing
+    output_type: list
+
+
+# ============================================================================
+# Code Analysis Prompts
+# ============================================================================
+
+evaluate_code_quality:
+  system: |
+    You are a senior software engineer reviewing code for quality,
+    security, and best practices.
+
+  user: |
+    Review this {{language}} code:
+
+    ```{{language}}
+    {{code}}
+    ```
+
+    Focus areas:
+    {{#focus_areas}}
+    - {{.}}
+    {{/focus_areas}}
+
+    Provide scores (0-10) and detailed feedback for each area.
+
+  placeholders:
+    - code
+    - language
+    - focus_areas  # list
+
+  response_format: json
+  temperature: 0.3
+
+
+suggest_improvements:
+  system: |
+    You are a code improvement assistant. Suggest practical,
+    actionable improvements.
+
+  user: |
+    Improve this {{language}} code:
+
+    ```{{language}}
+    {{code}}
+    ```
+
+    {{#context}}
+    Context: {{context}}
+    {{/context}}
+
+    Priorities: {{priorities}}
+
+    Provide:
+    1. Improved code
+    2. Explanation of changes
+    3. Pros/cons of the improvements
+
+  placeholders:
+    - code
+    - language
+    - context  # optional
+    - priorities  # e.g., "security, performance, readability"
+
+  response_format: json
+  temperature: 0.4
+  max_tokens: 2000
+
+
+# ============================================================================
+# Debate/Judging Prompts (for your scenarios)
+# ============================================================================
+
+judge_debate:
+  system: |
+    You are an experienced debate judge. Evaluate debates based on:
+    1. Emotional Appeal (0-1)
+    2. Clarity of Argument (0-1)
+    3. Logical Arrangement (0-1)
+    4. Relevance to Topic (0-1)
+
+  user: |
+    Evaluate this debate on: "{{topic}}"
+
+    Pro Arguments:
+    {{#pro_arguments}}
+    Round {{round}}: {{argument}}
+
+    {{/pro_arguments}}
+
+    Con Arguments:
+    {{#con_arguments}}
+    Round {{round}}: {{argument}}
+
+    {{/con_arguments}}
+
+    Provide scores for each criterion for both sides and declare a winner.
+
+  placeholders:
+    - topic
+    - pro_arguments  # list of {round, argument}
+    - con_arguments  # list of {round, argument}
+
+  response_format: json
+  temperature: 0.3
+
+
+# ============================================================================
+# General Purpose Prompts
+# ============================================================================
+
+summarize_text:
+  user: |
+    Summarize the following text in {{max_sentences}} sentences or less:
+
+    {{text}}
+
+    {{#style}}
+    Style: {{style}}
+    {{/style}}
+
+  placeholders:
+    - text
+    - max_sentences
+    - style  # optional: technical, casual, formal
+
+  response_format: text
+  temperature: 0.5
+  max_tokens: 500
+
+
+classify_text:
+  system: |
+    You are a text classification expert. Classify text into predefined categories
+    with confidence scores.
+
+  user: |
+    Classify this text into one of these categories: {{categories}}
+
+    Text:
+    {{text}}
+
+    Return JSON with: category, confidence, reasoning
+
+  placeholders:
+    - text
+    - categories  # comma-separated or list
+
+  response_format: json
+  temperature: 0.2
+
+
+extract_entities:
+  system: |
+    You are a named entity recognition expert. Extract entities accurately.
+
+  user: |
+    Extract {{entity_types}} from this text:
+
+    {{text}}
+
+    Return as JSON array with fields: entity, type, context
+
+  placeholders:
+    - text
+    - entity_types  # e.g., "names, dates, locations"
+
+  response_format: json
+  temperature: 0.1
+
+
+# ============================================================================
+# Structured Response Prompts
+# ============================================================================
+
+analyze_with_schema:
+  system: |
+    You are an AI assistant that provides structured responses.
+    Always follow the provided schema exactly.
+
+  user: |
+    Analyze: {{input}}
+
+    Task: {{task}}
+
+    Return response matching this schema:
+    {{schema}}
+
+  placeholders:
+    - input
+    - task
+    - schema  # JSON schema as string
+
+  response_format: json
+  temperature: 0.2
+
+
+# ============================================================================
+# Few-Shot Learning Example
+# ============================================================================
+
+detect_code_smell:
+  system: |
+    You are a code quality expert. Detect code smells and anti-patterns.
+
+  user: |
+    Detect code smells in this {{language}} code:
+
+    ```{{language}}
+    {{code}}
+    ```
+
+  examples:
+    - input: |
+        ```python
+        def get_user(id):
+            db = connect_db()
+            user = db.query("SELECT * FROM users WHERE id=" + str(id))
+            return user
+        ```
+      output: |
+        {
+          "smells": [
+            {
+              "type": "sql_injection",
+              "severity": "critical",
+              "line": 3,
+              "description": "String concatenation in SQL query"
+            },
+            {
+              "type": "resource_leak",
+              "severity": "medium",
+              "line": 2,
+              "description": "Database connection not closed"
+            }
+          ]
+        }
+
+    - input: |
+        ```python
+        def calculate(a, b, c, d, e, f, g, h):
+            return a + b * c - d / e + f ** g - h
+        ```
+      output: |
+        {
+          "smells": [
+            {
+              "type": "too_many_parameters",
+              "severity": "medium",
+              "description": "Function has 8 parameters (recommended max: 5)"
+            },
+            {
+              "type": "unclear_naming",
+              "severity": "low",
+              "description": "Single-letter parameter names reduce readability"
+            }
+          ]
+        }
+
+  placeholders:
+    - code
+    - language
+
+  response_format: json
+  temperature: 0.3
