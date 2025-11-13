@@ -9,6 +9,7 @@ Uses the advanced multi-agent framework with production-safe features.
 import asyncio
 import argparse
 import logging
+import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 from datetime import datetime
@@ -17,6 +18,7 @@ import httpx
 from agentbeats.green_executor import GreenAgent
 from agentbeats.models import EvalRequest as AgentBeatsEvalRequest
 from a2a.server.tasks import TaskUpdater
+from a2a.utils import new_agent_text_message
 from pydantic import BaseModel, Field
 
 # Import framework components
@@ -59,13 +61,6 @@ class EvalConfig(BaseModel):
     random_seed: Optional[int] = None
 
 
-class EvalRequest(BaseModel):
-    """Evaluation request from client."""
-    purple_agent_id: str
-    purple_agent_endpoint: str
-    config: Dict[str, Any] = Field(default_factory=dict)
-
-
 class EvalResponse(BaseModel):
     """Evaluation response to client."""
     status: str
@@ -104,7 +99,34 @@ class PurpleAgentA2AProxy(PurpleAgent):
         self.timeout = timeout
         logger.info(f"Purple Agent A2A Proxy initialized: {endpoint}")
 
-    async def detect(self, attack: Attack) -> TestResult:
+    def get_name(self) -> str:
+        """Get the name of this purple agent."""
+        return f"PurpleAgent@{self.endpoint}"
+
+    def reset(self):
+        """Reset purple agent state (if supported)."""
+        # Most purple agents don't support reset, so this is a no-op
+        pass
+
+    def detect(self, attack: Attack) -> TestResult:
+        """
+        Call purple agent using A2A protocol (synchronous wrapper).
+
+        Args:
+            attack: Attack object from framework
+
+        Returns:
+            TestResult with detection outcome
+        """
+        # Run the async detect method in a thread pool to avoid event loop conflicts
+        import asyncio
+        import concurrent.futures
+        
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(asyncio.run, self._detect_async(attack))
+            return future.result(timeout=self.timeout + 5)
+
+    async def _detect_async(self, attack: Attack) -> TestResult:
         """
         Call purple agent using A2A protocol.
 
@@ -159,15 +181,18 @@ class PurpleAgentA2AProxy(PurpleAgent):
             outcome = calculate_outcome(attack, detected)
 
             return TestResult(
-                attack=attack,
+                result_id=f"result_{attack.attack_id}",
+                attack_id=attack.attack_id,
+                purple_agent=self.get_name(),
                 detected=detected,
                 confidence=confidence,
+                detection_reason=str(detection_reason) if isinstance(detection_reason, list) else detection_reason,
                 outcome=outcome,
                 timestamp=datetime.now(),
                 metadata={
                     "purple_agent_response": response,
                     "a2a_context_id": response.get('context_id'),
-                    "detection_reason": detection_reason
+                    "detection_reasons": detection_reason
                 }
             )
 
@@ -177,9 +202,12 @@ class PurpleAgentA2AProxy(PurpleAgent):
             from framework.models import calculate_outcome
             outcome = calculate_outcome(attack, detected=False)
             return TestResult(
-                attack=attack,
+                result_id=f"result_{attack.attack_id}_error",
+                attack_id=attack.attack_id,
+                purple_agent=self.get_name(),
                 detected=False,
                 confidence=0.0,
+                detection_reason="A2A call failed",
                 outcome=outcome,
                 timestamp=datetime.now(),
                 metadata={"error": str(e)}
@@ -247,14 +275,33 @@ class CyberSecurityEvaluator(GreenAgent):
 
         logger.info("Cyber Security Evaluator initialized")
 
-    async def run_eval(self, req: EvalRequest, updater: TaskUpdater) -> EvalResponse:
+    def validate_request(self, req: AgentBeatsEvalRequest) -> tuple[bool, str]:
+        """
+        Validate the evaluation request.
+
+        Args:
+            req: AgentBeats evaluation request
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        try:
+            # Check that we have a purple_agent participant
+            if "purple_agent" not in req.participants:
+                return False, "Missing required participant: purple_agent"
+            
+            return True, ""
+        except Exception as e:
+            return False, f"Validation error: {str(e)}"
+
+    async def run_eval(self, req: AgentBeatsEvalRequest, updater: TaskUpdater) -> EvalResponse:
         """
         Run evaluation on a Purple Agent.
 
         This is the main entry point called by the A2A framework.
 
         Args:
-            req: Evaluation request with purple agent info and config
+            req: AgentBeats evaluation request with participants and config
             updater: Task updater for progress reporting
 
         Returns:
@@ -263,10 +310,14 @@ class CyberSecurityEvaluator(GreenAgent):
         start_time = asyncio.get_event_loop().time()
 
         try:
+            # Extract purple agent endpoint from participants
+            purple_agent_endpoint = str(req.participants.get("purple_agent", ""))
+            purple_agent_id = req.config.get("purple_agent_id", "unknown")
+            
             # Parse configuration
             config = EvalConfig(**req.config)
             logger.info(f"Starting evaluation for scenario: {config.scenario}")
-            logger.info(f"Purple Agent: {req.purple_agent_id} at {req.purple_agent_endpoint}")
+            logger.info(f"Purple Agent: {purple_agent_id} at {purple_agent_endpoint}")
             logger.info(f"Sandbox: {'ENABLED ✅' if config.use_sandbox else 'DISABLED ⚠️'}")
 
             if not config.use_sandbox:
@@ -274,19 +325,19 @@ class CyberSecurityEvaluator(GreenAgent):
                 logger.warning("⚠️  Purple agent code will execute without isolation!")
 
             # Update task status
-            await updater.update(status="running", message="Initializing evaluation framework...")
+            await updater.update_status("working", new_agent_text_message("Initializing evaluation framework..."))
 
             # Load scenario
             scenario = self._load_scenario(config.scenario)
 
             # Create Purple Agent A2A Proxy (uses AgentBeats SDK)
             purple_agent = PurpleAgentA2AProxy(
-                endpoint=req.purple_agent_endpoint,
+                endpoint=purple_agent_endpoint,
                 timeout=30.0
             )
 
             # Initialize evaluation engine (UnifiedEcosystem)
-            await updater.update(status="running", message="Initializing multi-agent framework...")
+            await updater.update_status("working", new_agent_text_message("Initializing multi-agent framework..."))
 
             engine = UnifiedEcosystem(
                 scenario=scenario,
@@ -311,9 +362,9 @@ class CyberSecurityEvaluator(GreenAgent):
             )
 
             # Run evaluation
-            await updater.update(status="running", message="Running multi-agent evaluation...")
+            await updater.update_status("working", new_agent_text_message("Running multi-agent evaluation..."))
 
-            result = await engine.evaluate(
+            result = engine.evaluate(
                 purple_agent=purple_agent,
                 max_rounds=config.max_rounds,
                 budget_usd=config.budget_usd
@@ -330,10 +381,13 @@ class CyberSecurityEvaluator(GreenAgent):
             if config.use_coverage_tracking and engine.coverage_tracker:
                 coverage_report = engine.coverage_tracker.get_coverage_report()
 
+            # Get evasions
+            evasions = result.get_evasions()
+
             # Prepare response
             response = EvalResponse(
                 status="completed",
-                purple_agent_id=req.purple_agent_id,
+                purple_agent_id=purple_agent_id,
                 scenario=config.scenario,
                 metrics={
                     "f1_score": result.metrics.f1_score,
@@ -343,19 +397,19 @@ class CyberSecurityEvaluator(GreenAgent):
                     "false_positive_rate": result.metrics.false_positive_rate,
                     "false_negative_rate": result.metrics.false_negative_rate,
                 },
-                evasions_found=len(result.evasions),
-                total_tests=result.total_tests,
+                evasions_found=len(evasions),
+                total_tests=result.total_attacks_tested,
                 coverage=coverage_report,
-                cost_usd=result.cost_usd,
+                cost_usd=result.total_cost_usd,
                 duration_seconds=duration,
                 timestamp=datetime.now().isoformat()
             )
 
             # Update task as completed
-            await updater.update(
-                status="completed",
-                message=f"Evaluation completed. F1: {result.metrics.f1_score:.3f}"
+            result_message = new_agent_text_message(
+                f"Evaluation completed. F1: {result.metrics.f1_score:.3f}\n\n{response.model_dump_json(indent=2)}"
             )
+            await updater.complete(result_message)
 
             logger.info(f"Evaluation completed in {duration:.1f}s")
             logger.info(f"F1: {result.metrics.f1_score:.3f}, "
@@ -367,13 +421,14 @@ class CyberSecurityEvaluator(GreenAgent):
 
         except Exception as e:
             logger.error(f"Evaluation failed: {e}", exc_info=True)
-            await updater.update(status="failed", message=f"Error: {str(e)}")
+            error_message = new_agent_text_message(f"Error: {str(e)}")
+            await updater.failed(error_message)
 
             # Return error response
             duration = asyncio.get_event_loop().time() - start_time
             return EvalResponse(
                 status="failed",
-                purple_agent_id=req.purple_agent_id,
+                purple_agent_id=purple_agent_id if 'purple_agent_id' in locals() else "unknown",
                 scenario=req.config.get('scenario', 'unknown'),
                 metrics={},
                 evasions_found=0,

@@ -1,0 +1,25 @@
+# AgentBeats Scenario Configuration
+# Prompt Injection Evaluation of Home Automation Agent
+
+[green_agent]
+endpoint = "http://127.0.0.1:9010"
+cmd = "python green_agents/cybersecurity_evaluator.py --host 127.0.0.1 --port 9010"
+
+[[participants]]
+role = "purple_agent"
+endpoint = "http://127.0.0.1:8000"
+cmd = "python purple_agents/home_automation_agent.py --port 8000"
+
+[config]
+purple_agent_id = "home_automation_agent"
+purple_agent_endpoint = "http://127.0.0.1:8000"
+scenario = "prompt_injection"
+max_rounds = 10
+budget_usd = 5.0
+use_sandbox = false
+use_cost_optimization = false
+use_coverage_tracking = false
+num_boundary_probers = 1
+num_exploiters = 2
+num_mutators = 1
+num_validators = 1
