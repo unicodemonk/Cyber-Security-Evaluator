@@ -150,6 +150,16 @@ class LLMJudgeAgent(UnifiedAgent):
         Returns:
             Judgment: 0 (not detected) or 1 (detected)
         """
+        # Get client identifier for logging
+        client_name = getattr(llm_client, 'model_name', 'unknown')
+        provider = getattr(llm_client, 'provider', None)
+        if provider:
+            client_id = f"{provider.value}/{client_name}" if hasattr(provider, 'value') else f"{provider}/{client_name}"
+        else:
+            client_id = client_name
+
+        self.logger.info(f"🤖 Calling LLM Judge: {client_id}")
+
         prompt = f"""Judge whether this security test result is correct.
 
 Attack: {attack.payload}
@@ -175,6 +185,8 @@ Is this detection result correct? Answer YES or NO.
 
             response = model_client.generate(prompt=prompt, max_tokens=10, temperature=0.3)
 
+            self.logger.info(f"✅ {client_id}: Response received - {response[:50]}")
+
             # Parse response
             if 'YES' in response.upper():
                 judgment = 1  # Detected
@@ -191,7 +203,10 @@ Is this detection result correct? Answer YES or NO.
             return judgment
 
         except Exception as e:
-            self.logger.error(f"LLM judgment failed: {e}")
+            error_type = type(e).__name__
+            error_msg = str(e)
+            self.logger.error(f"❌ {client_id} FAILED: {error_type} - {error_msg}")
+            self.logger.error(f"   Falling back to original detection result")
             return int(result.detected)  # Fall back to original result
 
     def _calibrate_judgments(

@@ -26,7 +26,9 @@ sys.path.append(str(Path(__file__).parent.parent))
 from framework.ecosystem import UnifiedEcosystem
 from framework.base import PurpleAgent, SecurityScenario
 from framework.models import Attack, TestResult, DetectionOutcome
-from framework.scenarios import SQLInjectionScenario, PromptInjectionScenario, ActiveScanningScenario
+from framework.scenarios import PromptInjectionScenario
+# TODO: Add more attack-type scenarios as we create them:
+# from framework.scenarios import SQLInjectionScenario, CommandInjectionScenario, XSSScenario
 from green_agents.agent_card import cybersecurity_agent_card
 
 
@@ -44,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 class EvalConfig(BaseModel):
     """Configuration for evaluation."""
-    scenario: str = Field(default="sql_injection", description="Attack type to evaluate")
+    scenario: str = Field(default="prompt_injection", description="Attack type to evaluate")
     max_rounds: int = Field(default=10, ge=1, le=100, description="Maximum evaluation rounds")
     budget_usd: float = Field(default=50.0, ge=0, description="Maximum budget in USD")
     use_sandbox: bool = Field(default=True, description="Use container isolation (CRITICAL for production)")
@@ -82,12 +84,12 @@ class EvalResponse(BaseModel):
 # Purple Agent HTTP Proxy
 # ============================================================================
 
-class PurpleAgentHTTPProxy(PurpleAgent):
+class PurpleAgentA2AProxy(PurpleAgent):
     """
-    Proxy that wraps HTTP-based Purple Agent for use with framework.
+    A2A-compliant proxy for Purple Agents.
 
-    Converts framework's internal Attack objects to HTTP requests
-    and HTTP responses back to TestResult objects.
+    Uses AgentBeats SDK to communicate with Purple Agents following A2A protocol.
+    Converts framework's internal Attack objects to A2A messages and back.
     """
 
     def __init__(self, endpoint: str, timeout: float = 30.0):
@@ -95,17 +97,16 @@ class PurpleAgentHTTPProxy(PurpleAgent):
         Initialize purple agent proxy.
 
         Args:
-            endpoint: HTTP endpoint of purple agent (e.g., "http://127.0.0.1:8000")
+            endpoint: HTTP endpoint of purple agent (e.g., "http://127.0.0.1:8001")
             timeout: Request timeout in seconds
         """
         self.endpoint = endpoint.rstrip('/')
         self.timeout = timeout
-        self.client = httpx.AsyncClient(timeout=timeout)
-        logger.info(f"Purple Agent HTTP Proxy initialized: {endpoint}")
+        logger.info(f"Purple Agent A2A Proxy initialized: {endpoint}")
 
     async def detect(self, attack: Attack) -> TestResult:
         """
-        Call purple agent's /detect endpoint.
+        Call purple agent using A2A protocol.
 
         Args:
             attack: Attack object from framework
@@ -114,36 +115,48 @@ class PurpleAgentHTTPProxy(PurpleAgent):
             TestResult with detection outcome
         """
         try:
-            # Prepare request payload
-            payload = {
-                "test_case_id": attack.attack_id,
-                "code": attack.payload,
-                "language": getattr(attack, 'language', 'python'),
-                "attack_type": getattr(attack, 'technique', 'unknown')
+            # Import A2A SDK helper
+            from agentbeats.client import send_message
+
+            # Create A2A-formatted detection request
+            detection_request = {
+                "attack_id": attack.attack_id,
+                "payload": str(attack.payload),
+                "technique": attack.technique,
+                "scenario": attack.scenario,
+                "metadata": attack.metadata
             }
 
-            # Call purple agent
-            response = await self.client.post(
-                f"{self.endpoint}/detect",
-                json=payload
+            request_json = json.dumps(detection_request)
+
+            # Use A2A SDK to send message (handles agent card, client creation, etc.)
+            logger.debug(f"Sending A2A message to {self.endpoint}")
+            response = await send_message(
+                message=request_json,
+                base_url=self.endpoint,
+                streaming=False
             )
-            response.raise_for_status()
 
-            # Parse response
-            data = response.json()
-            detected = data.get('is_vulnerable', False)
-            confidence = data.get('confidence', 0.0)
+            # Parse A2A response
+            response_text = response.get('response', '')
+            logger.debug(f"Received A2A response: {response_text[:200]}")
 
-            # Determine outcome
-            is_attack = attack.is_attack
-            if is_attack and detected:
-                outcome = DetectionOutcome.TRUE_POSITIVE
-            elif is_attack and not detected:
-                outcome = DetectionOutcome.FALSE_NEGATIVE
-            elif not is_attack and detected:
-                outcome = DetectionOutcome.FALSE_POSITIVE
-            else:
-                outcome = DetectionOutcome.TRUE_NEGATIVE
+            # Try to parse response as JSON
+            try:
+                result_data = json.loads(response_text)
+                detected = result_data.get('detected', False)
+                confidence = result_data.get('confidence', 0.5)
+                detection_reason = result_data.get('reasons', [])
+            except json.JSONDecodeError:
+                # Fallback: simple text parsing
+                detected = 'detected' in response_text.lower() and 'true' in response_text.lower()
+                confidence = 0.5
+                detection_reason = ["Unable to parse response"]
+                logger.warning(f"Could not parse A2A response as JSON: {response_text[:100]}")
+
+            # Calculate outcome using ground truth (GREEN AGENT'S JOB!)
+            from framework.models import calculate_outcome
+            outcome = calculate_outcome(attack, detected)
 
             return TestResult(
                 attack=attack,
@@ -152,26 +165,29 @@ class PurpleAgentHTTPProxy(PurpleAgent):
                 outcome=outcome,
                 timestamp=datetime.now(),
                 metadata={
-                    "purple_agent_response": data,
-                    "http_status": response.status_code
+                    "purple_agent_response": response,
+                    "a2a_context_id": response.get('context_id'),
+                    "detection_reason": detection_reason
                 }
             )
 
-        except httpx.HTTPError as e:
-            logger.error(f"HTTP error calling purple agent: {e}")
+        except Exception as e:
+            logger.error(f"A2A call failed: {e}")
             # Return error as non-detection
+            from framework.models import calculate_outcome
+            outcome = calculate_outcome(attack, detected=False)
             return TestResult(
                 attack=attack,
                 detected=False,
                 confidence=0.0,
-                outcome=DetectionOutcome.FALSE_NEGATIVE if attack.is_attack else DetectionOutcome.TRUE_NEGATIVE,
+                outcome=outcome,
                 timestamp=datetime.now(),
                 metadata={"error": str(e)}
             )
 
     async def close(self):
-        """Close HTTP client."""
-        await self.client.aclose()
+        """Close any resources (A2A SDK handles client lifecycle)."""
+        pass
 
 
 # ============================================================================
@@ -263,8 +279,8 @@ class CyberSecurityEvaluator(GreenAgent):
             # Load scenario
             scenario = self._load_scenario(config.scenario)
 
-            # Create Purple Agent HTTP Proxy
-            purple_agent = PurpleAgentHTTPProxy(
+            # Create Purple Agent A2A Proxy (uses AgentBeats SDK)
+            purple_agent = PurpleAgentA2AProxy(
                 endpoint=req.purple_agent_endpoint,
                 timeout=30.0
             )
@@ -373,18 +389,17 @@ class CyberSecurityEvaluator(GreenAgent):
         Load scenario by name.
 
         Args:
-            scenario_name: Name of the scenario (e.g., "sql_injection")
+            scenario_name: Name of the scenario (e.g., "prompt_injection")
 
         Returns:
             SecurityScenario instance
         """
         scenario_map = {
-            'sql_injection': SQLInjectionScenario,
             'prompt_injection': PromptInjectionScenario,
-            'active_scanning': ActiveScanningScenario,
-            # Add more scenarios here as they're implemented:
-            # 'xss': XSSScenario,
+            # TODO: Add more attack-type scenarios as we create them:
+            # 'sql_injection': SQLInjectionScenario,
             # 'command_injection': CommandInjectionScenario,
+            # 'xss': XSSScenario,
             # 'path_traversal': PathTraversalScenario,
         }
 

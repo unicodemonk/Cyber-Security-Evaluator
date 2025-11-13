@@ -26,7 +26,40 @@ class LLMProvider(Enum):
     MOCK = "mock"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GOOGLE = "google"
     TOGETHER = "together"
+
+
+# Default models for each provider
+DEFAULT_MODELS = {
+    LLMProvider.OPENAI: 'gpt-3.5-turbo',
+    LLMProvider.ANTHROPIC: 'claude-3-haiku-20240307',
+    LLMProvider.GOOGLE: 'gemini-2.5-flash',
+    LLMProvider.TOGETHER: 'meta-llama/Llama-3-8b-chat-hf'
+}
+
+
+def get_model_name(provider: LLMProvider) -> str:
+    """
+    Get model name from environment variable or use default.
+
+    Args:
+        provider: LLM provider
+
+    Returns:
+        Model name
+    """
+    env_var_map = {
+        LLMProvider.OPENAI: 'OPENAI_MODEL',
+        LLMProvider.ANTHROPIC: 'ANTHROPIC_MODEL',
+        LLMProvider.GOOGLE: 'GOOGLE_MODEL',
+        LLMProvider.TOGETHER: 'TOGETHER_MODEL'
+    }
+
+    env_var = env_var_map.get(provider)
+    if env_var:
+        return os.getenv(env_var, DEFAULT_MODELS.get(provider, ''))
+    return DEFAULT_MODELS.get(provider, '')
 
 
 class MockLLMClient:
@@ -191,6 +224,8 @@ class RealLLMClient:
             return os.getenv('OPENAI_API_KEY', '')
         elif self.provider == LLMProvider.ANTHROPIC:
             return os.getenv('ANTHROPIC_API_KEY', '')
+        elif self.provider == LLMProvider.GOOGLE:
+            return os.getenv('GOOGLE_API_KEY', '') or os.getenv('GEMINI_API_KEY', '')
         elif self.provider == LLMProvider.TOGETHER:
             return os.getenv('TOGETHER_API_KEY', '')
         return ''
@@ -210,6 +245,14 @@ class RealLLMClient:
                 return anthropic.Anthropic(api_key=self.api_key)
             except ImportError:
                 raise ImportError("Anthropic package not installed. Run: pip install anthropic")
+
+        elif self.provider == LLMProvider.GOOGLE:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=self.api_key)
+                return genai
+            except ImportError:
+                raise ImportError("Google Generative AI package not installed. Run: pip install google-generativeai")
 
         elif self.provider == LLMProvider.TOGETHER:
             try:
@@ -257,6 +300,17 @@ class RealLLMClient:
                 )
                 text = response.content[0].text
                 self.total_cost += 0.01  # Placeholder
+
+                return text
+
+            elif self.provider == LLMProvider.GOOGLE:
+                model = self.client.GenerativeModel(self.model_name)
+                response = model.generate_content(
+                    prompt,
+                    generation_config={'max_output_tokens': max_tokens, 'temperature': temperature}
+                )
+                text = response.text
+                self.total_cost += 0.0005  # Gemini is very cheap
 
                 return text
 

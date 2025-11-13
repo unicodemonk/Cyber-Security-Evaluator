@@ -60,8 +60,8 @@ class UnifiedEcosystem:
         # Initialize model router for cost optimization (if enabled)
         self.model_router = None
         if self.use_llm and self.llm_clients and self.config.get('use_cost_optimization', False):
-            from .cost_optimizer import ModelRouter
-            self.model_router = ModelRouter(llm_clients=self.llm_clients)
+            from .cost_optimizer import ModelRouter, EXAMPLE_MODELS
+            self.model_router = ModelRouter(models=EXAMPLE_MODELS)
             self.logger.info("Model router initialized for cost optimization")
 
         # Initialize coverage tracker (if enabled)

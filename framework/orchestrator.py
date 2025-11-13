@@ -496,8 +496,8 @@ class MetaOrchestrator:
         purple_agent: PurpleAgent,
         eval_result: EvaluationResult
     ) -> float:
-        """Execute consensus phase (multi-perspective assessment)."""
-        self.logger.info("Phase: CONSENSUS (Multi-Perspective Assessment)")
+        """Execute consensus phase (LLM Judge + multi-perspective assessment)."""
+        self.logger.info("Phase: CONSENSUS (LLM Judge Assessment)")
 
         # Form debate coalition
         coalition = self._form_coalition(
@@ -507,18 +507,36 @@ class MetaOrchestrator:
 
         cost = 0.0
 
-        # Get perspectives
-        task = Task(
-            task_id=f"assess_{datetime.now().timestamp()}",
-            task_type="assess",
-            description="Multi-perspective assessment",
-            parameters={'evaluation_result': eval_result}
+        # Check if we have attacks and results to judge
+        if not eval_result.attacks or not eval_result.test_results:
+            self.logger.warning("No attacks/results to judge, skipping consensus")
+            coalition.dissolve()
+            return cost
+
+        # Create judgment task for LLM Judge agents
+        judgment_task = Task(
+            task_id=f"judge_{datetime.now().timestamp()}",
+            task_type="judge",
+            description="LLM Judge consensus assessment",
+            parameters={
+                'attacks': eval_result.attacks,
+                'test_results': eval_result.test_results
+            }
         )
 
+        # Execute LLM Judge consensus
         for agent in coalition.members:
-            if Capability.EVALUATE in agent.capabilities.capabilities:
-                result = agent.execute_task(task)
-                cost += agent.capabilities.cost_per_invocation
+            if Capability.DEBATE in agent.capabilities.capabilities:
+                try:
+                    result = agent.execute_task(judgment_task)
+                    cost += agent.capabilities.cost_per_invocation
+
+                    # Log judgment results if available
+                    if result and 'judgments' in result:
+                        num_judgments = len(result['judgments'])
+                        self.logger.info(f"LLM Judge completed {num_judgments} judgments")
+                except Exception as e:
+                    self.logger.error(f"LLM Judge execution failed: {e}")
 
         coalition.dissolve()
         return cost
