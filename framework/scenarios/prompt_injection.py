@@ -851,12 +851,26 @@ class PromptInjectionScenario(SecurityScenario):
 
         Args:
             technique: Attack technique to create
-            **kwargs: Additional parameters
+            **kwargs: Additional parameters (payload, metadata, etc.)
 
         Returns:
             Attack object
         """
-        # Get templates for this technique
+        # If payload is provided in kwargs, create a custom attack
+        if 'payload' in kwargs:
+            payload_hash = str(abs(hash(str(kwargs.get('payload')))))[:8]
+            attack_id = kwargs.get('attack_id', f"custom_{technique}_{payload_hash}")
+            return Attack(
+                attack_id=attack_id,
+                scenario="prompt_injection",
+                technique=technique,
+                payload=kwargs['payload'],
+                is_malicious=kwargs.get('is_malicious', True),
+                metadata=kwargs.get('metadata', {}),
+                severity=kwargs.get('severity', Severity.MEDIUM)
+            )
+        
+        # Otherwise, get templates for this technique
         templates = self.get_attack_templates()
         matching = [t for t in templates if t.technique == technique]
 
@@ -868,7 +882,7 @@ class PromptInjectionScenario(SecurityScenario):
                 technique=technique,
                 payload=f"Attack for {technique}",
                 is_malicious=True,
-                metadata={"generated": True}
+                metadata=kwargs.get("metadata", {"generated": True})
             )
 
         # Return first matching template

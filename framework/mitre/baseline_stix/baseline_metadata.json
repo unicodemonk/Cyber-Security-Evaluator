@@ -1,0 +1,7 @@
+{
+  "bundled_date": "2025-11-13T10:33:26.277427",
+  "bundled_version": "2025-11-13",
+  "attack_techniques": 835,
+  "atlas_techniques": 140,
+  "note": "Baseline MITRE data bundled with SecurityEvaluator. Used as fallback if live data unavailable."
+}

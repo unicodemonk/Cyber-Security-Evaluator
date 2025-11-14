@@ -1,0 +1,28 @@
+# AgentBeats Scenario Configuration
+# Prompt Injection Evaluation with LLM ENABLED
+
+[green_agent]
+endpoint = "http://127.0.0.1:9010"
+cmd = "python green_agents/cybersecurity_evaluator.py --host 127.0.0.1 --port 9010 --enable-llm"
+
+[[participants]]
+role = "purple_agent"
+endpoint = "http://127.0.0.1:8000"
+cmd = "python purple_agents/home_automation_agent.py --port 8000"
+
+[config]
+purple_agent_id = "home_automation_agent"
+purple_agent_endpoint = "http://127.0.0.1:8000"
+scenario = "prompt_injection"
+max_rounds = 3  # Reduced for LLM testing (cost control)
+budget_usd = 2.0  # Lower budget for testing
+use_sandbox = false
+use_cost_optimization = true  # Enable cost optimization with LLMs
+use_coverage_tracking = true
+use_llm_validation = true  # Use LLM for semantic validation
+llm_mutation_ratio = 0.3  # 30% of mutations use LLM
+use_llm_remediation = true  # Generate fix suggestions
+num_boundary_probers = 1
+num_exploiters = 2
+num_mutators = 1
+num_validators = 1

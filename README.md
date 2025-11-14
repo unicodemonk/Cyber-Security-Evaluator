@@ -61,6 +61,16 @@ Purple Agent (Target System)
 - Not agent-specific (reusable!)
 - Prompt injection, SQL injection, etc.
 
+### ✅ MITRE ATT&CK & ATLAS Integration
+- 835 ATT&CK Enterprise techniques
+- 140 ATLAS AI/ML techniques  
+- **Two execution paths**:
+  1. **Path 1 (MITRE Direct)**: AgentProfiler → TTPSelector → PayloadGenerator → Direct HTTP
+  2. **Path 2 (Multi-Agent)**: 5-agent framework with Thompson Sampling + evolution
+- Intelligent TTP selection based on agent profile
+- Template + pattern-based payload generation (no LLM required)
+- Automatic ATLAS prioritization for AI agents
+
 ### ✅ A2A Protocol Compliant
 - Zero dependencies between agents
 - Discovery via `.well-known/agent-card.json`
@@ -69,13 +79,14 @@ Purple Agent (Target System)
 ### ✅ Production Ready
 - Sandbox isolation
 - Cost controls & budget limits
-- Coverage tracking (MITRE ATT&CK)
 - AgentBeats compliant
+- Comprehensive test coverage
 
 ### ✅ Easy to Test
 - One-command test script
 - Simple development workflow
 - Clear metrics (TP/FN/TN/FP)
+- Detailed reports in markdown + JSON
 
 ---
 
@@ -94,7 +105,12 @@ SecurityEvaluator/
 │   ├── ecosystem.py                      ← Multi-agent system
 │   ├── cost_optimizer.py                 ← Budget controls
 │   ├── coverage_tracker.py               ← MITRE tracking
+│   ├── profiler.py                       ← Agent profiling
 │   ├── sandbox.py                        ← Container isolation
+│   ├── mitre/
+│   │   ├── ttp_selector.py               ← MITRE TTP selection
+│   │   ├── payload_generator.py          ← Attack generation
+│   │   └── baseline_stix/                ← MITRE data (975 techniques)
 │   └── scenarios/
 │       └── prompt_injection.py           ← Generic attacks ✅
 │
@@ -258,6 +274,88 @@ GET http://127.0.0.1:8000/.well-known/agent-card.json
 
 ---
 
+## 🎯 MITRE ATT&CK & ATLAS Integration
+
+The framework includes comprehensive MITRE integration for intelligent, real-world attack generation.
+
+### Key Features
+
+**Automatic Agent Profiling:**
+- Extracts capabilities from AgentCard
+- Identifies platforms, technologies, attack surface
+- Assesses risk level
+
+**Intelligent TTP Selection:**
+- 835 ATT&CK Enterprise techniques
+- 140 ATLAS AI/ML techniques
+- Smart scoring based on agent profile
+- Selects most relevant techniques per agent
+
+**Template-Based Payload Generation:**
+- 100+ attack templates across 10+ categories
+- Jailbreak, prompt injection, SQL, XSS, command injection
+- Context-aware payload customization via parameter substitution
+- Generic tactic-based patterns for techniques without explicit templates
+- Severity scoring (low/medium/high/critical)
+- **No LLM required** - works entirely with templates and patterns
+- Optional LLM enhancement available for creative generation
+
+### Configuration
+
+Enable MITRE integration in scenario TOML files:
+
+```toml
+[mitre]
+auto_download = true           # Download latest MITRE data
+cache_refresh_hours = 168      # Refresh weekly (default)
+use_bundled_fallback = true    # Use bundled data if download fails
+max_techniques_per_agent = 10  # Techniques per agent
+```
+
+### Data Management
+
+- **Bundled Baseline:** 33MB STIX data (ATT&CK v15.1, ATLAS v4.6.0)
+- **Auto-Download:** Fetches latest data from MITRE
+- **Smart Caching:** Configurable refresh intervals
+- **Offline Support:** Falls back to bundled data
+
+### Example Output
+
+```
+📊 Agent Profile: HomeAutomationAgent
+  Type: automation
+  Platforms: linux
+  Risk Level: medium
+  AI Agent: Yes (triggers ATLAS prioritization)
+
+🎯 Selected TTPs (25 techniques):
+  • AML.T0056 - Extract LLM System Prompt (ATLAS) 
+  • AML.T0061 - LLM Prompt Self-Replication (ATLAS)
+  • AML.T0080.000 - Memory (ATLAS)
+  • AML.T0086 - Exfiltration via AI Agent Tool Invocation (ATLAS)
+  • AML.T0094 - Delay Execution of LLM Instructions (ATLAS)
+  ...
+
+🔥 Generated 53 Attacks:
+  • Path 1 (MITRE Direct): 23 ATLAS (92%), 2 ATT&CK (8%)
+  • 50 malicious payloads
+  • 3 benign controls
+  • Categories: exfiltration, persistence, defense-evasion, etc.
+
+📊 Results:
+  • Security Score: 49.2/100 (FAIR)
+  • Exploitation Rate: 44.0%
+  • False Positive Rate: 66.7%
+```
+
+### Documentation
+
+For complete details, see:
+- **framework/mitre/README.md** - MITRE integration technical documentation
+- **reports/** - Latest evaluation reports with MITRE technique usage
+
+---
+
 ## 🔧 Installation
 
 ### Dependencies
@@ -288,6 +386,18 @@ pip install agentbeats
 
 - **README.md** ← You are here (main guide for team)
 - **tests/run_tests.sh** ← One-command test script
+- **tests/test_final_comprehensive.py** ← Comprehensive test (both MITRE paths)
+
+### Test Reports
+
+Latest comprehensive evaluation:
+- **reports/FINAL_EVALUATION_REPORT_*.md** - Detailed markdown report
+- **reports/FINAL_EVALUATION_DATA_*.json** - Raw JSON data export
+
+Test results show:
+- Path 1 (MITRE Direct): 23 ATLAS techniques (92%), 53 attacks total
+- Path 2 (Multi-Agent): 18 ATLAS techniques (72%), 129 attacks total
+- Both paths share top 4 ATLAS techniques demonstrating alignment
 
 ### Additional Documentation (docs/)
 
@@ -296,6 +406,14 @@ For more details, see the `docs/` directory:
 - **SCENARIOS_EXPLAINED.md** - Attack scenarios architecture
 - **PROMPT_INJECTION_DESIGN.md** - Prompt injection design details
 - **WHAT_IS_AGENTCARD.md** - AgentCard specification
+
+### MITRE Integration
+
+The framework includes MITRE ATT&CK & ATLAS integration:
+
+- **framework/mitre/README.md** - Complete MITRE integration documentation
+- **reports/** - Latest evaluation reports showing technique usage
+- **tests/test_final_comprehensive.py** - Comprehensive test demonstrating both paths
 
 ---
 
@@ -311,9 +429,15 @@ For more details, see the `docs/` directory:
 ### Green Agent (Cybersecurity Evaluator)
 - ✅ AgentBeats compliant
 - ✅ Attack-type scenarios (prompt injection)
+- ✅ MITRE ATT&CK & ATLAS integration (975 techniques)
+- ✅ Two execution paths:
+  - Path 1: Direct MITRE-based attacks (AgentProfiler → TTPSelector → PayloadGenerator)
+  - Path 2: Multi-agent framework (5 agents with Thompson Sampling + evolution)
+- ✅ Intelligent TTP selection & payload generation
+- ✅ Agent profiling from AgentCards
+- ✅ Template + pattern-based payload generation (no LLM required)
 - ✅ Sandbox isolation (production)
 - ✅ Cost controls & budget limits (production)
-- ✅ Coverage tracking - MITRE ATT&CK (production)
 
 ### Attack Scenarios
 - ✅ Prompt Injection (38 templates)

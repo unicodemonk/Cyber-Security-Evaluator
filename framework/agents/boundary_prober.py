@@ -8,9 +8,20 @@ weak decision boundaries where attacks are likely to evade detection.
 from typing import Any, Dict, List, Optional, Set, Tuple
 import random
 from datetime import datetime
+from pathlib import Path
 
 from ..base import UnifiedAgent, AgentCapabilities, Capability, AgentRole, Task, KnowledgeBase, PurpleAgent
 from ..models import Attack, TestResult, TestOutcome
+
+# MITRE integration components
+try:
+    from ..profiler import AgentProfiler, AgentProfile
+    from ..mitre.ttp_selector import MITRETTPSelector, MITRETechnique, TTPSource
+    MITRE_AVAILABLE = True
+except ImportError as e:
+    MITRE_AVAILABLE = False
+    import logging
+    logging.getLogger(__name__).warning(f"MITRE components not available: {e}")
 
 
 class BoundaryProberAgent(UnifiedAgent):
@@ -25,7 +36,8 @@ class BoundaryProberAgent(UnifiedAgent):
         self,
         agent_id: str,
         knowledge_base: KnowledgeBase,
-        scenario: 'SecurityScenario'
+        scenario: 'SecurityScenario',
+        mitre_config: Optional[Dict[str, Any]] = None
     ):
         """
         Initialize boundary prober.
@@ -34,6 +46,7 @@ class BoundaryProberAgent(UnifiedAgent):
             agent_id: Unique agent identifier
             knowledge_base: Shared knowledge base
             scenario: Security scenario being evaluated
+            mitre_config: MITRE configuration (refresh_interval_hours, use_bundled_fallback, etc.)
         """
         capabilities = AgentCapabilities(
             capabilities={Capability.PROBE},
@@ -44,10 +57,36 @@ class BoundaryProberAgent(UnifiedAgent):
         )
         super().__init__(agent_id, capabilities, knowledge_base)
         self.scenario = scenario
+        self.mitre_config = mitre_config or {}
 
         # Probing state
         self.boundaries_found: List[Dict[str, Any]] = []
         self.probe_history: List[Tuple[Attack, TestResult]] = []
+        
+        # MITRE integration (optional, graceful fallback)
+        self.agent_profile: Optional[AgentProfile] = None
+        self.selected_ttps: List[MITRETechnique] = []
+        self._profiled = False  # Track if profiling has been done
+        
+        if MITRE_AVAILABLE and self.mitre_config.get('enabled', True):
+            try:
+                self.profiler = AgentProfiler(
+                    cache_dir=Path.home() / '.seceval' / 'agent_cards'
+                )
+                self.ttp_selector = MITRETTPSelector(
+                    cache_dir=Path.home() / '.seceval' / 'mitre',
+                    refresh_interval_hours=self.mitre_config.get('refresh_interval_hours', 168),
+                    auto_download=self.mitre_config.get('auto_download', True),
+                    use_bundled_fallback=self.mitre_config.get('use_bundled_fallback', True)
+                )
+                self.logger.info("MITRE components initialized successfully")
+            except Exception as e:
+                self.logger.warning(f"Failed to initialize MITRE components: {e}")
+                self.profiler = None
+                self.ttp_selector = None
+        else:
+            self.profiler = None
+            self.ttp_selector = None
 
     def execute_task(self, task: Task) -> Any:
         """
@@ -70,6 +109,10 @@ class BoundaryProberAgent(UnifiedAgent):
             self.logger.error("Missing required parameters: purple_agent, technique")
             return {'error': 'Missing parameters'}
 
+        # MITRE Enhancement: Profile agent and select TTPs (once per agent)
+        if not self._profiled and self.profiler and self.ttp_selector:
+            self._profile_and_select_ttps(purple_agent)
+
         # Execute probing
         boundaries = self._probe_boundaries(purple_agent, technique, num_probes)
 
@@ -86,6 +129,127 @@ class BoundaryProberAgent(UnifiedAgent):
         )
 
         return boundaries
+
+    def _profile_and_select_ttps(self, purple_agent: PurpleAgent) -> None:
+        """
+        Profile purple agent and select relevant MITRE TTPs.
+        
+        This is called once per agent and shares findings to knowledge base.
+        
+        Args:
+            purple_agent: Purple agent to profile
+        """
+        try:
+            self.logger.info(f"Profiling purple agent: {purple_agent.get_name()}")
+            
+            # Try to get agent card URL (if purple agent supports it)
+            agent_card_url = None
+            if hasattr(purple_agent, 'get_agent_card_url'):
+                try:
+                    agent_card_url = purple_agent.get_agent_card_url()
+                except Exception as e:
+                    self.logger.debug(f"Could not get agent card URL: {e}")
+            
+            # Profile the agent
+            if agent_card_url:
+                self.agent_profile = self.profiler.profile_agent(agent_card_url=agent_card_url)
+            else:
+                # Create minimal profile from agent name
+                self.agent_profile = self._create_minimal_profile(purple_agent)
+            
+            self.logger.info(f"Agent profiled: type={self.agent_profile.agent_type}, "
+                           f"platforms={self.agent_profile.platforms}")
+            
+            # Select relevant MITRE TTPs based on profile
+            profile_dict = {
+                'platforms': self.agent_profile.platforms,
+                'type': self.agent_profile.agent_type,
+                'domains': self.agent_profile.domains,
+                'capabilities': self.agent_profile.capabilities,
+                'name': self.agent_profile.name,
+                # Enable ATLAS prioritization for AI/ML/automation agents
+                'is_ai_agent': self.agent_profile.agent_type in ['ai', 'ml', 'automation', 'iot'],
+                'is_ml_model': self.agent_profile.agent_type in ['ml', 'ai']
+            }
+            
+            self.selected_ttps = self.ttp_selector.select_techniques_for_profile(
+                agent_profile=profile_dict,
+                max_techniques=25  # Increased from 20 to allow more ATLAS techniques
+            )
+            
+            self.logger.info(f"Selected {len(self.selected_ttps)} MITRE TTPs for agent")
+            
+            # Share profile to knowledge base
+            self.share_knowledge(
+                entry_type='agent_profile',
+                data={
+                    'agent_id': purple_agent.get_name(),
+                    'profile': self.agent_profile.to_dict()
+                },
+                tags={'agent_profile', purple_agent.get_name()}
+            )
+            
+            # Share selected TTPs to knowledge base
+            self.share_knowledge(
+                entry_type='selected_ttps',
+                data={
+                    'agent_id': purple_agent.get_name(),
+                    'techniques': [
+                        {
+                            'technique_id': ttp.technique_id,
+                            'name': ttp.name,
+                            'description': ttp.description,
+                            'tactics': ttp.tactics,
+                            'platforms': ttp.platforms,
+                            'source': ttp.source.value
+                        }
+                        for ttp in self.selected_ttps
+                    ],
+                    'count': len(self.selected_ttps)
+                },
+                tags={'selected_ttps', purple_agent.get_name()}
+            )
+            
+            self._profiled = True
+            
+        except Exception as e:
+            self.logger.warning(f"MITRE profiling failed, continuing without it: {e}")
+            self._profiled = True  # Don't retry
+    
+    def _create_minimal_profile(self, purple_agent: PurpleAgent) -> AgentProfile:
+        """
+        Create minimal profile when agent card is not available.
+        
+        Args:
+            purple_agent: Purple agent
+            
+        Returns:
+            Minimal AgentProfile
+        """
+        from ..profiler import AgentProfile
+        
+        agent_name = purple_agent.get_name()
+        
+        # Infer platform from name (basic heuristics)
+        platforms = ['web']  # Default
+        if 'iot' in agent_name.lower() or 'automation' in agent_name.lower():
+            platforms = ['iot', 'web']
+        if 'llm' in agent_name.lower() or 'ai' in agent_name.lower():
+            platforms.append('ai-ml')
+        
+        return AgentProfile(
+            agent_id=agent_name,
+            name=agent_name,
+            description=f"Agent {agent_name} (no agent card available)",
+            platforms=platforms,
+            capabilities=[],
+            domains=['automation'] if 'automation' in agent_name.lower() else [],
+            technologies=[],
+            agent_type='generic',
+            risk_level='medium',
+            attack_surface={},
+            metadata={}
+        )
 
     def _probe_boundaries(
         self,

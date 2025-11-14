@@ -23,3 +23,10 @@ num_boundary_probers = 1
 num_exploiters = 2
 num_mutators = 1
 num_validators = 1
+
+# MITRE ATT&CK & ATLAS Configuration
+[config.mitre]
+enabled = true
+refresh_interval_hours = 168  # 1 week (7 days * 24 hours)
+use_bundled_fallback = true   # Use bundled baseline data if download fails
+auto_download = true           # Automatically download fresh data if cache is stale
