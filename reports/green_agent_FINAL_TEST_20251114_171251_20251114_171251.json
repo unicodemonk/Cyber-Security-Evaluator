@@ -1,0 +1,19 @@
+{
+  "true_positives": 24,
+  "true_negatives": 1,
+  "false_positives": 2,
+  "false_negatives": 26,
+  "precision": 0.9230769230769231,
+  "recall": 0.48,
+  "f1_score": 0.631578947368421,
+  "accuracy": 0.4716981132075472,
+  "specificity": 0.3333333333333333,
+  "false_positive_rate": 0.6666666666666666,
+  "false_negative_rate": 0.52,
+  "competition_score": 63.1578947368421,
+  "grade": "D",
+  "per_category": {},
+  "total_tests": 53,
+  "total_cost_usd": 0.0,
+  "total_latency_ms": 25.425
+}

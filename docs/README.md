@@ -8,13 +8,21 @@ Welcome to the SecurityEvaluator documentation! This is a **SQL Injection Detect
 
 ### Quick Navigation
 
-1. **[ANALYSIS.md](./ANALYSIS.md)** - Start here
+1. **[🔍 DUAL_EVALUATION_GUIDE.md](./DUAL_EVALUATION_GUIDE.md)** - **START HERE FOR SCORING**
+   - **Complete guide to dual evaluation framework**
+   - How Security Evaluator and Security Posture scores work
+   - TP/FP/TN/FN outcome correlation with scores
+   - Terminology guide (Green Agent vs Security Evaluator)
+   - Compatibility and integration information
+   - Real examples, formulas, and FAQ
+
+2. **[ANALYSIS.md](./ANALYSIS.md)** - Project state
    - Current state of the project
    - What's available, what's broken, what's missing
    - Critical issues and fixes needed
    - Architectural decisions
 
-2. **[DESIGN.md](./DESIGN.md)** - System architecture
+3. **[DESIGN.md](./DESIGN.md)** - System architecture
    - High-level architecture diagrams
    - Green Agent design (evaluation benchmark)
    - Purple Agent interface (security detectors)
@@ -22,7 +30,7 @@ Welcome to the SecurityEvaluator documentation! This is a **SQL Injection Detect
    - Dataset design
    - Scoring methodology
 
-3. **[SPECIFICATION.md](./SPECIFICATION.md)** - Technical details
+4. **[SPECIFICATION.md](./SPECIFICATION.md)** - Technical details
    - API specifications (A2A protocol)
    - Data models (Pydantic schemas)
    - File formats (metadata.json, test cases)
@@ -30,11 +38,30 @@ Welcome to the SecurityEvaluator documentation! This is a **SQL Injection Detect
    - Testing requirements
    - Performance requirements
 
-4. **[PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)** - Project organization
+5. **[PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md)** - Project organization
    - Complete directory layout
    - File-by-file breakdown
    - Development workflow
    - Priority roadmap
+
+---
+
+## 🎯 Understanding Dual Evaluation
+
+**New to the framework? Read this first:**
+
+The SecurityEvaluator uses **dual scoring perspectives**:
+
+| **Perspective** | **What It Measures** | **Key Metric** | **Audience** |
+|----------------|---------------------|---------------|--------------|
+| **Security Evaluator** | Attack detection effectiveness | F1 Score (0-100) | Red teams, researchers |
+| **Security Posture** | System security health | Posture Score (0-100) | Blue teams, developers |
+
+**Both perspectives analyze the same test results but ask different questions:**
+- Security Evaluator: "How good is our testing?"
+- Security Posture: "How secure is the system?"
+
+👉 **[Read the complete guide](./DUAL_EVALUATION_GUIDE.md)** for formulas, examples, and integration details.
 
 ---
 

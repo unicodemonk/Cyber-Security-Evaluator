@@ -8,7 +8,7 @@ import asyncio
 import httpx
 from scenarios.security.models import CodeSample, PurpleAgentResponse, DetectionOutcome, TestResult
 from scenarios.security.dataset_manager import DatasetManager
-from scenarios.security.scoring_engine import ScoringEngine
+from framework.scoring import GreenAgentScoringEngine
 
 async def test_purple_agent():
     """Test the Purple Agent with a few samples and show results."""
@@ -21,7 +21,7 @@ async def test_purple_agent():
     # Initialize components
     dataset_manager = DatasetManager("datasets/sql_injection")
     dataset_manager.load_datasets()
-    scoring_engine = ScoringEngine()
+    scoring_engine = GreenAgentScoringEngine()
 
     # Get some test samples
     print("📋 Loading test samples...")

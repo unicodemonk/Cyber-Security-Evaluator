@@ -33,7 +33,10 @@ from framework.mitre.payload_generator import PayloadGenerator
 from framework.knowledge_base import InMemoryKnowledgeBase
 from framework.scenarios import PromptInjectionScenario
 from framework.ecosystem import UnifiedEcosystem
-from framework.models import Attack, TestResult
+from framework.models import Attack, Severity
+from framework.scoring import DualScoringEngine
+from framework.reporting import GreenAgentReporter, PurpleAgentReporter
+from scenarios.security.models import DetectionOutcome, TestResult
 import httpx
 
 
@@ -385,6 +388,114 @@ async def test_path_1_mitre_direct(purple_client: PurpleAgentHTTPClient) -> Dict
     print(f"   ✅ Exploitation Rate: {exploitation_rate:.1f}%")
     print(f"   ✅ Resistance Rate: {resistance_rate:.1f}%")
     print(f"   ✅ False Positive Rate: {false_positive_rate:.1f}%")
+    
+    # Phase 6: Generate Dual Evaluation Report
+    print("\n[Phase 6] Generating Dual Evaluation Report (Green Agent + Purple Agent Perspectives)...")
+    
+    # Convert attack_results to TestResult and Attack objects for dual evaluation
+    test_results = []
+    attacks = []
+    
+    for result_data in attack_results:
+        # Create Attack object
+        attack = Attack(
+            attack_id=result_data['technique_id'],
+            scenario=result_data['category'],
+            technique=result_data['technique_name'],
+            payload=result_data['payload'],
+            is_malicious=result_data['is_malicious'],
+            severity=Severity.HIGH if result_data['severity'] in ['high', 'critical'] else 
+                     Severity.MEDIUM if result_data['severity'] == 'medium' else Severity.LOW,
+            metadata={
+                'technique_id': result_data['technique_id'],
+                'category': result_data['category']
+            }
+        )
+        attacks.append(attack)
+        
+        # Create TestResult object
+        outcome_map = {
+            'TRUE_POSITIVE': DetectionOutcome.TRUE_POSITIVE,
+            'FALSE_NEGATIVE': DetectionOutcome.FALSE_NEGATIVE,
+            'TRUE_NEGATIVE': DetectionOutcome.TRUE_NEGATIVE,
+            'FALSE_POSITIVE': DetectionOutcome.FALSE_POSITIVE
+        }
+        
+        test_result = TestResult(
+            test_case_id=result_data['technique_id'],
+            ground_truth=result_data['is_malicious'],
+            predicted=(result_data['outcome'] in ['TRUE_POSITIVE', 'FALSE_POSITIVE']),
+            outcome=outcome_map[result_data['outcome']],
+            category=result_data['category'],
+            language='python',
+            confidence=0.8,
+            execution_time_ms=result_data['latency_ms'],
+            purple_agent_response=None
+        )
+        test_results.append(test_result)
+    
+    # Run dual evaluation
+    dual_engine = DualScoringEngine()
+    dual_result = dual_engine.evaluate(
+        evaluation_id=f"FINAL_TEST_{TIMESTAMP}",
+        results=test_results,
+        attacks=attacks,
+        purple_agent_name=PURPLE_AGENT_NAME,
+        scenario="mitre_direct_attack"
+    )
+    
+    # Generate reports
+    green_reporter = GreenAgentReporter()
+    purple_reporter = PurpleAgentReporter()
+    
+    green_report_md = green_reporter.generate_markdown_report(dual_result)
+    purple_report_md = purple_reporter.generate_markdown_report(dual_result)
+    
+    # Save dual evaluation reports
+    green_report_path = REPORT_DIR / f"GREEN_AGENT_REPORT_{TIMESTAMP}.md"
+    purple_report_path = REPORT_DIR / f"PURPLE_AGENT_REPORT_{TIMESTAMP}.md"
+    
+    green_report_path.write_text(green_report_md)
+    purple_report_path.write_text(purple_report_md)
+    
+    # Export JSON
+    json_exports = dual_engine.export_dual_reports(dual_result, str(REPORT_DIR))
+    
+    results['dual_evaluation'] = {
+        'green_agent': {
+            'f1_score': dual_result.green_agent_metrics.f1_score,
+            'precision': dual_result.green_agent_metrics.precision,
+            'recall': dual_result.green_agent_metrics.recall,
+            'competition_score': dual_result.green_agent_metrics.competition_score,
+            'grade': dual_result.green_agent_metrics.grade
+        },
+        'purple_agent': {
+            'security_score': dual_result.purple_agent_assessment.security_score,
+            'risk_level': dual_result.purple_agent_assessment.risk_level,
+            'vulnerabilities': dual_result.purple_agent_assessment.total_vulnerabilities,
+            'critical_count': dual_result.purple_agent_assessment.critical_count,
+            'high_count': dual_result.purple_agent_assessment.high_count
+        },
+        'reports': {
+            'green_markdown': str(green_report_path),
+            'purple_markdown': str(purple_report_path),
+            'json_exports': json_exports
+        }
+    }
+    
+    print(f"\n   ✅ Green Agent Score: {dual_result.green_agent_metrics.competition_score:.1f}/100 ({dual_result.green_agent_metrics.grade})")
+    print(f"   ✅ Purple Agent Security Posture: {dual_result.purple_agent_assessment.security_score:.1f}/100 ({dual_result.purple_agent_assessment.risk_level})")
+    print(f"   ✅ Vulnerabilities Found: {dual_result.purple_agent_assessment.total_vulnerabilities}")
+    print(f"   ✅ Reports Saved:")
+    print(f"      - {green_report_path.name}")
+    print(f"      - {purple_report_path.name}")
+    
+    results['phases'].append({
+        'phase': 6,
+        'name': 'Dual Evaluation & Reporting',
+        'status': 'complete',
+        'data': results['dual_evaluation']
+    })
     
     print("\n✅ PATH 1 COMPLETE")
     return results
@@ -1128,9 +1239,23 @@ async def main():
         print("=" * 80)
         print(f"\n✅ All tests completed successfully!")
         print(f"\nPath 1 (MITRE Direct):")
-        print(f"   - Security Score: {path1_results['metrics']['security_score']:.1f}/100 ({path1_results['metrics']['rating']})")
+        print(f"   - Security Score (Legacy): {path1_results['metrics']['security_score']:.1f}/100 ({path1_results['metrics']['rating']})")
         print(f"   - Attacks Tested: {len(path1_results['attacks'])}")
         print(f"   - Exploitation Rate: {path1_results['metrics']['exploitation_rate']:.1f}%")
+        
+        # Dual Evaluation Metrics
+        if 'dual_evaluation' in path1_results:
+            print(f"\n   🎯 Dual Evaluation Scores:")
+            print(f"   Green Agent Perspective (Security Evaluator):")
+            print(f"      - F1 Score: {path1_results['dual_evaluation']['green_agent']['f1_score']:.3f}")
+            print(f"      - Evaluation Score: {path1_results['dual_evaluation']['green_agent']['competition_score']:.1f}/100")
+            print(f"      - Grade: {path1_results['dual_evaluation']['green_agent']['grade']}")
+            print(f"   Purple Agent Perspective (Security Posture):")
+            print(f"      - Security Score: {path1_results['dual_evaluation']['purple_agent']['security_score']:.1f}/100")
+            print(f"      - Risk Level: {path1_results['dual_evaluation']['purple_agent']['risk_level']}")
+            print(f"      - Vulnerabilities: {path1_results['dual_evaluation']['purple_agent']['vulnerabilities']} "
+                  f"(C:{path1_results['dual_evaluation']['purple_agent']['critical_count']} "
+                  f"H:{path1_results['dual_evaluation']['purple_agent']['high_count']})")
         
         print(f"\nPath 2 (Multi-Agent):")
         print(f"   - F1 Score: {path2_results['evaluation_result']['metrics']['f1_score']:.3f}")
@@ -1140,6 +1265,10 @@ async def main():
         print(f"\n📄 Reports saved to: {REPORT_DIR}/")
         print(f"   - {report_path_md.name}")
         print(f"   - {report_path_json.name}")
+        if 'dual_evaluation' in path1_results:
+            for report_type, report_path in path1_results['dual_evaluation']['reports'].items():
+                if report_type != 'json_exports':
+                    print(f"   - {Path(report_path).name}")
         
         print("\n✅ FINAL TEST COMPLETE - READY FOR COMMIT")
         
