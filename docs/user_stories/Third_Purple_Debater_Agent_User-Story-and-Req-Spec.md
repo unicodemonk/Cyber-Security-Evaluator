@@ -244,6 +244,8 @@ CMD ["python", "-m", "purple_debater"]
 
 ---
 
+## **Security Vulnerabilities Analysis**
+
 The **Purple Debater Agent** described in the user story and specification for the UC Berkeley AgentBeats competition presents several security vulnerabilities and risks, mostly associated with its architecture, data flow, protocol exposure, and the nature of AI-driven debate systems. Here’s an organized breakdown of potential security vulnerabilities relevant to this use case:
 
 ---
