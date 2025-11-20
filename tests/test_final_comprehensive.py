@@ -20,6 +20,7 @@ Generates comprehensive reports showing:
 import asyncio
 import sys
 import json
+import os
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List
@@ -44,7 +45,7 @@ import httpx
 # CONFIGURATION
 # ============================================================================
 
-PURPLE_AGENT_URL = "http://127.0.0.1:8000"
+PURPLE_AGENT_URL = os.environ.get("PURPLE_AGENT_URL", "http://127.0.0.1:8000")
 PURPLE_AGENT_NAME = "Home Automation Agent"
 REPORT_DIR = Path(__file__).parent.parent / "reports"
 TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")

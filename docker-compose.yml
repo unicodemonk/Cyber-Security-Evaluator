@@ -1,0 +1,70 @@
+services:
+  # Purple Agent - Target system being evaluated (Home Automation)
+  purple-agent:
+    build:
+      context: .
+      dockerfile: purple_agents/Dockerfile
+    container_name: home_automation_agent
+    ports:
+      - "8000:8000"
+    networks:
+      - agent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/.well-known/agent-card.json"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Green Agent - Security Evaluator (Cybersecurity Evaluator)
+  green-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cybersecurity_evaluator
+    ports:
+      - "9010:9010"
+    environment:
+      # LLM API keys (optional - for enhanced evaluation)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      # LLM configuration
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2000}
+    volumes:
+      # Map reports directory to host for persistent output
+      - ./reports:/app/reports
+    networks:
+      - agent-network
+    depends_on:
+      purple-agent:
+        condition: service_healthy
+
+  # Test Runner - Run security evaluation tests
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: security_test_runner
+    environment:
+      - PURPLE_AGENT_URL=http://purple-agent:8000
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+    volumes:
+      - ./reports:/app/reports
+    networks:
+      - agent-network
+    depends_on:
+      purple-agent:
+        condition: service_healthy
+      green-agent:
+        condition: service_healthy
+    profiles:
+      - test
+    command: ["python", "tests/test_final_comprehensive.py"]
+
+networks:
+  agent-network:
+    driver: bridge

@@ -617,7 +617,7 @@ def create_agent_card(port: int) -> AgentCard:
     )
 
 
-def run_server(port: int = 8000):
+def run_server(port: int = 8000, host: str = "127.0.0.1"):
     """Run home automation agent server."""
     agent = HomeAutomationAgent()
     agent_card = create_agent_card(port)
@@ -703,13 +703,14 @@ def run_server(port: int = 8000):
     logger.info(f"   - System Commands (DANGEROUS!)")
     logger.info("="*70)
 
-    uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
+    uvicorn.run(app, host=host, port=port, log_level="info")
 
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Home Automation Purple Agent")
     parser.add_argument("--port", type=int, default=8000, help="Port (default: 8000)")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host (default: 127.0.0.1)")
     args = parser.parse_args()
 
-    run_server(args.port)
+    run_server(args.port, args.host)

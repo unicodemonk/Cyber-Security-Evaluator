@@ -215,6 +215,183 @@ python3 green_agents/cybersecurity_evaluator.py \
 
 **Note:** For Options 2 and 3, always start the Purple Agent (Terminal 1) first, wait for it to be ready, then run the test/evaluator (Terminal 2).
 
+### Option 4: Docker Containerized (Recommended for Production)
+
+Run both agents in Docker containers with automatic orchestration and output mapping.
+
+#### Prerequisites
+
+- Docker installed and running
+- Docker Compose installed
+- (Optional) LLM API keys in `.env` file
+
+#### Step 1: Build Containers
+
+```bash
+# Build both Green and Purple agent containers
+docker-compose build
+```
+
+#### Step 2: Start Containers
+
+```bash
+# Start both agents (Purple Agent starts first, Green Agent waits for health check)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Check container status
+docker-compose ps
+```
+
+#### Step 3: Verify Setup
+
+```bash
+# Check Purple Agent is running
+curl http://localhost:8000/.well-known/agent-card.json
+
+# Check Green Agent is running
+curl http://localhost:9010/.well-known/agent-card.json
+```
+
+#### Step 4: Run Evaluation
+
+Submit an evaluation request to the Green Agent:
+
+```bash
+curl -X POST http://localhost:9010/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tasks/send",
+    "id": "1",
+    "params": {
+      "message": {
+        "role": "user",
+        "parts": [{
+          "type": "data",
+          "data": {
+            "participants": {
+              "purple_agent": "http://purple-agent:8000"
+            },
+            "config": {
+              "scenario": "prompt_injection",
+              "max_rounds": 10,
+              "budget_usd": 5.0,
+              "use_sandbox": false,
+              "use_dual_evaluation": true,
+              "generate_reports": true,
+              "report_dir": "reports"
+            }
+          }
+        }]
+      }
+    }
+  }'
+```
+
+**Note:** Use `http://purple-agent:8000` (container name) for inter-container communication.
+
+#### Step 4b: Run Comprehensive Tests (Alternative)
+
+Run the full test suite using the test-runner service:
+
+```bash
+# Run comprehensive security evaluation tests
+docker-compose --profile test up test-runner
+
+# Or rebuild and run (if test code changed)
+docker-compose --profile test build test-runner && docker-compose --profile test up test-runner
+```
+
+This runs `tests/test_final_comprehensive.py` which executes:
+- **Path 1 (MITRE Direct):** 53 attacks with MITRE ATT&CK & ATLAS techniques
+- **Path 2 (Multi-Agent):** 129 attacks via 5-agent orchestration framework
+
+**Example Output:**
+```
+✅ All tests completed successfully!
+
+Path 1 (MITRE Direct):
+   - Security Score (Legacy): 39.4/100 (POOR)
+   - Attacks Tested: 53
+   - Exploitation Rate: 58.0%
+
+Path 2 (Multi-Agent):
+   - F1 Score: 0.702
+   - Attacks Tested: 129
+   - MITRE Integration: ✅ Verified
+
+📄 Reports saved to: /app/reports/
+```
+
+#### Step 5: View Reports
+
+Reports are automatically mapped to your host filesystem:
+
+```bash
+# View generated reports
+ls -la reports/
+
+# Reports include:
+# - PURPLE_AGENT_*.md  - Security posture assessment
+# - GREEN_AGENT_*.md   - Evaluation results
+# - *.json             - Raw data exports
+```
+
+#### Step 6: Stop Containers
+
+```bash
+# Stop containers
+docker-compose down
+
+# Stop and remove volumes
+docker-compose down -v
+
+# Remove images (full cleanup)
+docker-compose down --rmi all
+```
+
+#### Docker Quick Reference
+
+| Action | Command |
+|--------|---------|
+| Build | `docker-compose build` |
+| Start | `docker-compose up -d` |
+| Run Tests | `docker-compose --profile test up test-runner` |
+| Logs | `docker-compose logs -f` |
+| Status | `docker-compose ps` |
+| Stop | `docker-compose down` |
+| Rebuild | `docker-compose up -d --build` |
+
+#### Docker Architecture
+
+```
+┌─────────────────────┐     A2A Protocol      ┌─────────────────────┐
+│   Green Agent       │──────────────────────▶│   Purple Agent      │
+│   (Evaluator)       │                       │   (Target)          │
+│   Port: 9010        │◀──────────────────────│   Port: 8000        │
+│   cybersecurity_    │     HTTP Response     │   home_automation_  │
+│   evaluator         │                       │   agent             │
+└─────────────────────┘                       └─────────────────────┘
+         │
+         ▼
+    ./reports/  (mapped to host)
+```
+
+#### Environment Variables (Optional)
+
+Create a `.env` file for LLM integration:
+
+```bash
+cp .env.example .env
+# Edit .env with your API keys:
+# OPENAI_API_KEY=sk-your-key
+# ANTHROPIC_API_KEY=sk-ant-your-key
+# GOOGLE_API_KEY=AIza-your-key
+```
+
 ---
 
 ## 📊 Understanding Results
