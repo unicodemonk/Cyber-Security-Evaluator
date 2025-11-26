@@ -874,7 +874,7 @@ async def main():
     @app.route("/status", methods=["GET"])
     async def launcher_status(request):
         return JSONResponse({
-            "status": "pass",
+            "status": "server up, with agent running",
             "version": "1",
             "agent": agent_card.name,
             "description": "Green Agent launcher is ready"
