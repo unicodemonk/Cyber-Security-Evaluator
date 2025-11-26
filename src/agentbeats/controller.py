@@ -417,7 +417,7 @@ def create_controller_app(controller: AgentBeatsController) -> FastAPI:
         agent_status = controller.get_status()
         if agent_status.state == AgentState.RUNNING:
             return {
-                "status": "pass",
+                "status": "server up, with agent running",
                 "version": "2.0.0",
                 "serviceId": controller.config.agent_name,
                 "description": f"AgentBeats Controller for {controller.config.agent_name}",
