@@ -572,7 +572,7 @@ class HomeAutomationAgent:
 # FASTAPI SERVER (A2A Compatible)
 # ============================================================================
 
-def create_agent_card(port: int) -> AgentCard:
+def create_agent_card(port: int, card_url: str = None) -> AgentCard:
     """Create A2A agent card."""
     skill = AgentSkill(
         id="home_automation",
@@ -601,6 +601,9 @@ def create_agent_card(port: int) -> AgentCard:
 """]
     )
 
+    # Use provided card_url or construct from host:port
+    agent_url = card_url if card_url else f"http://127.0.0.1:{port}"
+
     return AgentCard(
         name="HomeAutomationAgent",
         description=(
@@ -608,7 +611,7 @@ def create_agent_card(port: int) -> AgentCard:
             "Controls household systems via natural language commands. "
             "INTENTIONALLY VULNERABLE for AgentBeats competition testing."
         ),
-        url=f"http://127.0.0.1:{port}",
+        url=agent_url,
         version="1.0.0",
         default_input_modes=["text"],
         default_output_modes=["text"],
@@ -617,10 +620,10 @@ def create_agent_card(port: int) -> AgentCard:
     )
 
 
-def run_server(port: int = 8000, host: str = "127.0.0.1"):
+def run_server(port: int = 8000, host: str = "127.0.0.1", card_url: str = None):
     """Run home automation agent server."""
     agent = HomeAutomationAgent()
-    agent_card = create_agent_card(port)
+    agent_card = create_agent_card(port, card_url)
 
     app = FastAPI(title="Home Automation Agent")
 
@@ -734,6 +737,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Home Automation Purple Agent")
     parser.add_argument("--port", type=int, default=8000, help="Port (default: 8000)")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host (default: 127.0.0.1)")
+    parser.add_argument("--card-url", type=str, default=None, help="Public URL for agent card (optional)")
     args = parser.parse_args()
 
-    run_server(args.port, args.host)
+    run_server(args.port, args.host, args.card_url)
