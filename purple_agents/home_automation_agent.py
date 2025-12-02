@@ -709,6 +709,28 @@ def run_server(port: int = 8000, host: str = "127.0.0.1", card_url: str = None):
         """Get current home state."""
         return JSONResponse(content=agent.get_state())
 
+    @app.post("/reset")
+    async def reset_agent():
+        """Reset agent state between battles."""
+        try:
+            # Reset the agent by reinitializing its state
+            agent.state = HomeState()
+            agent.command_history = []
+
+            logger.info("Purple Agent reset successful")
+            return JSONResponse({
+                "status": "success",
+                "message": "Agent has been reset",
+                "agent": "HomeAutomationAgent"
+            })
+        except Exception as e:
+            logger.error(f"Reset failed: {e}")
+            return JSONResponse({
+                "status": "error",
+                "message": f"Reset failed: {str(e)}",
+                "agent": "HomeAutomationAgent"
+            }, status_code=500)
+
     logger.info("="*70)
     logger.info("🏠 Home Automation Purple Agent (Target System)")
     logger.info("="*70)

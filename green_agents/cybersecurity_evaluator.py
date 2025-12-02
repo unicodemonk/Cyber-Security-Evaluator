@@ -880,6 +880,29 @@ async def main():
             "description": "Green Agent launcher is ready"
         })
 
+    # Add /reset endpoint for AgentBeats battle reset
+    @app.route("/reset", methods=["POST"])
+    async def reset_agent_endpoint(request):
+        """Reset agent state between battles."""
+        try:
+            # Reset the Green Agent if it has a reset method
+            if hasattr(agent, 'reset'):
+                agent.reset()
+
+            logger.info("Agent reset successful")
+            return JSONResponse({
+                "status": "success",
+                "message": "Agent has been reset",
+                "agent": agent_card.name
+            })
+        except Exception as e:
+            logger.error(f"Reset failed: {e}")
+            return JSONResponse({
+                "status": "error",
+                "message": f"Reset failed: {str(e)}",
+                "agent": agent_card.name
+            }, status_code=500)
+
     uvicorn_config = uvicorn.Config(app, host=args.host, port=args.port)
     uvicorn_server = uvicorn.Server(uvicorn_config)
     await uvicorn_server.serve()
