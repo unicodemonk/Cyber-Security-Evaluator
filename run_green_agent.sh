@@ -16,11 +16,28 @@ fi
 # Set environment variables
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 
+# Read deployment counter for agent name prefix
+COUNTER_FILE="/tmp/agent_deployment_counter.txt"
+if [ -f "$COUNTER_FILE" ]; then
+    COUNTER=$(cat "$COUNTER_FILE")
+    PREFIX=$(printf "%03d" "$COUNTER")
+else
+    PREFIX=""
+fi
+
 # Start the Green Agent
 # Bind to 0.0.0.0 for external access
-python3 green_agents/cybersecurity_evaluator.py \
-    --host 0.0.0.0 \
-    --port 9010 \
-    --enable-llm
+if [ -n "$PREFIX" ]; then
+    python3 green_agents/cybersecurity_evaluator.py \
+        --host 0.0.0.0 \
+        --port 9010 \
+        --enable-llm \
+        --name-prefix "$PREFIX"
+else
+    python3 green_agents/cybersecurity_evaluator.py \
+        --host 0.0.0.0 \
+        --port 9010 \
+        --enable-llm
+fi
 
 echo "Green Agent started on port 9010"

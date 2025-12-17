@@ -572,7 +572,7 @@ class HomeAutomationAgent:
 # FASTAPI SERVER (A2A Compatible)
 # ============================================================================
 
-def create_agent_card(port: int, card_url: str = None) -> AgentCard:
+def create_agent_card(port: int, card_url: str = None, agent_name: str = "HomeAutomationAgent") -> AgentCard:
     """Create A2A agent card."""
     skill = AgentSkill(
         id="home_automation",
@@ -605,7 +605,7 @@ def create_agent_card(port: int, card_url: str = None) -> AgentCard:
     agent_url = card_url if card_url else f"http://127.0.0.1:{port}"
 
     return AgentCard(
-        name="HomeAutomationAgent",
+        name=agent_name,
         description=(
             "Home Automation Purple Agent (Target System for Security Testing). "
             "Controls household systems via natural language commands. "
@@ -620,12 +620,12 @@ def create_agent_card(port: int, card_url: str = None) -> AgentCard:
     )
 
 
-def run_server(port: int = 8000, host: str = "127.0.0.1", card_url: str = None):
+def run_server(port: int = 8000, host: str = "127.0.0.1", card_url: str = None, agent_name: str = "HomeAutomationAgent"):
     """Run home automation agent server."""
     agent = HomeAutomationAgent()
-    agent_card = create_agent_card(port, card_url)
+    agent_card = create_agent_card(port, card_url, agent_name)
 
-    app = FastAPI(title="Home Automation Agent")
+    app = FastAPI(title=agent_name)
 
     @app.get("/.well-known/agent-card.json")
     async def get_agent_card():
@@ -728,11 +728,11 @@ def run_server(port: int = 8000, host: str = "127.0.0.1", card_url: str = None):
             return JSONResponse({
                 "status": "error",
                 "message": f"Reset failed: {str(e)}",
-                "agent": "HomeAutomationAgent"
+                "agent": agent_name
             }, status_code=500)
 
     logger.info("="*70)
-    logger.info("🏠 Home Automation Purple Agent (Target System)")
+    logger.info(f"🏠 {agent_name} - Purple Agent (Target System)")
     logger.info("="*70)
     logger.info(f"🌐 Endpoint: http://127.0.0.1:{port}")
     logger.info(f"📋 Agent Card: http://127.0.0.1:{port}/.well-known/agent-card.json")
@@ -760,6 +760,16 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=8000, help="Port (default: 8000)")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host (default: 127.0.0.1)")
     parser.add_argument("--card-url", type=str, default=None, help="Public URL for agent card (optional)")
+    parser.add_argument(
+        "--name-prefix",
+        type=str,
+        default="",
+        help='Prefix for agent name (e.g., "001" for "001_Home Automation Agent")'
+    )
     args = parser.parse_args()
 
-    run_server(args.port, args.host, args.card_url)
+    # Build agent name with optional prefix
+    base_name = "Home Automation Agent"
+    agent_name = f"{args.name_prefix}_{base_name}" if args.name_prefix else base_name
+
+    run_server(args.port, args.host, args.card_url, agent_name)

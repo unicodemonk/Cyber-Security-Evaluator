@@ -810,15 +810,27 @@ async def main():
         default=None,
         help='Public URL for agent card (for AgentBeats platform)'
     )
+    parser.add_argument(
+        '--name-prefix',
+        type=str,
+        default='',
+        help='Prefix for agent name (e.g., "001" for "001_Cyber Security Evaluator")'
+    )
 
     args = parser.parse_args()
 
+    # Build agent name with optional prefix
+    base_name = "Cyber Security Evaluator"
+    agent_name = f"{args.name_prefix}_{base_name}" if args.name_prefix else base_name
+    
     logger.info("=" * 70)
-    logger.info("Cyber Security Evaluator - Green Agent")
+    logger.info(f"{agent_name} - Green Agent")
     logger.info("=" * 70)
     logger.info(f"Host: {args.host}")
     logger.info(f"Port: {args.port}")
     logger.info(f"LLM: {'Enabled' if args.enable_llm else 'Disabled'}")
+    if args.name_prefix:
+        logger.info(f"Name Prefix: {args.name_prefix}")
     logger.info("=" * 70)
 
     # Create agent
@@ -831,7 +843,7 @@ async def main():
     # Use provided card-url if available, otherwise construct from host:port
     card_url = args.card_url if args.card_url else f"http://{args.host}:{args.port}/"
     agent_card = cybersecurity_agent_card(
-        agent_name="Cyber Security Evaluator",
+        agent_name=agent_name,
         card_url=card_url
     )
 

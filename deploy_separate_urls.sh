@@ -23,12 +23,29 @@ fi
 echo -e "${GREEN}✓${NC} Cloudflared is installed"
 echo ""
 
+# Generate deployment counter prefix
+COUNTER_FILE="/tmp/agent_deployment_counter.txt"
+if [ -f "$COUNTER_FILE" ]; then
+    COUNTER=$(cat "$COUNTER_FILE")
+else
+    COUNTER=0
+fi
+
+# Increment and save
+COUNTER=$((COUNTER + 1))
+echo "$COUNTER" > "$COUNTER_FILE"
+
+# Format as 3-digit prefix
+PREFIX=$(printf "%03d" "$COUNTER")
+echo -e "${GREEN}Deployment #${COUNTER}${NC} - Agent name prefix: ${PREFIX}"
+echo ""
+
 # Start Green Agent Controller in background
-echo "1. Starting Green Agent Controller (port 9000)..."
+echo "1. Starting Green Agent Controller (port 9100)..."
 python3 src/agentbeats/controller.py \
-    --agent-name "Cyber Security Evaluator" \
+    --agent-name "${PREFIX}_Cyber Security Evaluator" \
     --agent-port 9010 \
-    --controller-port 9000 \
+    --controller-port 9100 \
     --launch-script "$(pwd)/run_green_agent.sh" \
     --working-dir "$(pwd)" \
     --auto-start > /tmp/green_controller.log 2>&1 &
@@ -38,11 +55,11 @@ echo "   Controller PID: $GREEN_CONTROLLER_PID"
 
 # Start Purple Agent Controller in background
 echo ""
-echo "2. Starting Purple Agent Controller (port 8100)..."
+echo "2. Starting Purple Agent Controller (port 8200)..."
 python3 src/agentbeats/controller.py \
-    --agent-name "Home Automation Agent" \
+    --agent-name "${PREFIX}_Home Automation Agent" \
     --agent-port 8000 \
-    --controller-port 8100 \
+    --controller-port 8200 \
     --launch-script "$(pwd)/run_purple_agent.sh" \
     --working-dir "$(pwd)" \
     --auto-start > /tmp/purple_controller.log 2>&1 &
@@ -59,7 +76,7 @@ sleep 20
 echo ""
 echo "4. Verifying controllers..."
 
-if curl -s -f http://localhost:9000/health > /dev/null; then
+if curl -s -f http://localhost:9100/health > /dev/null; then
     echo -e "${GREEN}✓${NC} Green Agent Controller is healthy"
 else
     echo "Error: Green Agent Controller is not responding"
@@ -67,7 +84,7 @@ else
     exit 1
 fi
 
-if curl -s -f http://localhost:8100/health > /dev/null; then
+if curl -s -f http://localhost:8200/health > /dev/null; then
     echo -e "${GREEN}✓${NC} Purple Agent Controller is healthy"
 else
     echo "Error: Purple Agent Controller is not responding"
@@ -81,8 +98,8 @@ echo "5. Starting Cloudflare Tunnels (4 total)..."
 echo ""
 
 # Green Agent - Launcher (Controller)
-echo "   Green Agent Launcher (controller on port 9000)..."
-cloudflared tunnel --url http://localhost:9000 > /tmp/green_launcher.log 2>&1 &
+echo "   Green Agent Launcher (controller on port 9100)..."
+cloudflared tunnel --url http://localhost:9100 > /tmp/green_launcher.log 2>&1 &
 GREEN_LAUNCHER_PID=$!
 
 # Green Agent - Endpoint (Direct Agent)
@@ -91,8 +108,8 @@ cloudflared tunnel --url http://localhost:9010 > /tmp/green_endpoint.log 2>&1 &
 GREEN_ENDPOINT_PID=$!
 
 # Purple Agent - Launcher (Controller)
-echo "   Purple Agent Launcher (controller on port 8100)..."
-cloudflared tunnel --url http://localhost:8100 > /tmp/purple_launcher.log 2>&1 &
+echo "   Purple Agent Launcher (controller on port 8200)..."
+cloudflared tunnel --url http://localhost:8200 > /tmp/purple_launcher.log 2>&1 &
 PURPLE_LAUNCHER_PID=$!
 
 # Purple Agent - Endpoint (Direct Agent)
@@ -117,7 +134,7 @@ GREEN_LAUNCHER_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' /tmp/green
 GREEN_ENDPOINT_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' /tmp/green_endpoint.log | head -1)
 
 if [ -n "$GREEN_LAUNCHER_URL" ] && [ -n "$GREEN_ENDPOINT_URL" ]; then
-    echo -e "${GREEN}Green Agent (Cyber Security Evaluator)${NC}"
+    echo -e "${GREEN}Green Agent (${PREFIX}_Cyber Security Evaluator)${NC}"
     echo "  Launcher URL: $GREEN_LAUNCHER_URL"
     echo "  Endpoint URL: $GREEN_ENDPOINT_URL"
     echo ""
@@ -125,6 +142,12 @@ if [ -n "$GREEN_LAUNCHER_URL" ] && [ -n "$GREEN_ENDPOINT_URL" ]; then
     echo "  Launcher Status: $GREEN_LAUNCHER_URL/status"
     echo "  Agent Card:      $GREEN_ENDPOINT_URL/.well-known/agent-card.json"
     echo ""
+    
+    # Save URLs to files
+    echo "$GREEN_LAUNCHER_URL" > /tmp/green_launcher_url.txt
+    echo "$GREEN_ENDPOINT_URL" > /tmp/green_endpoint_url.txt
+else
+    echo -e "${YELLOW}Warning: Could not extract Green Agent URLs${NC}"
 fi
 
 # Purple Agent URLs
@@ -132,7 +155,7 @@ PURPLE_LAUNCHER_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' /tmp/purp
 PURPLE_ENDPOINT_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' /tmp/purple_endpoint.log | head -1)
 
 if [ -n "$PURPLE_LAUNCHER_URL" ] && [ -n "$PURPLE_ENDPOINT_URL" ]; then
-    echo -e "${GREEN}Purple Agent (Home Automation Agent)${NC}"
+    echo -e "${GREEN}Purple Agent (${PREFIX}_Home Automation Agent)${NC}"
     echo "  Launcher URL: $PURPLE_LAUNCHER_URL"
     echo "  Endpoint URL: $PURPLE_ENDPOINT_URL"
     echo ""
