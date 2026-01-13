@@ -3,15 +3,15 @@
 # SQL Injection Detection Benchmark Green Agent
 [sql_injection_judge]
 role = "green_agent"
-endpoint = "http://127.0.0.1:9010"
-cmd = "python scenarios/security/sql_injection_judge.py --host 127.0.0.1 --port 9010 --dataset-root datasets/sql_injection"
+endpoint = "https://functionality-baby-utils-clean.trycloudflare.com"
+cmd = "python scenarios/security/sql_injection_judge.py --host 0.0.0.0 --port 9010 --dataset-root datasets/sql_injection"
 description = "SQL Injection Detection Benchmark - Evaluates Purple Agents on SQL injection detection"
 
 # Purple Agent: Baseline SQL Detector (Example Participant)
 [baseline_sql_detector]
 role = "purple_agent"
-endpoint = "http://127.0.0.1:8000/detect"
-cmd = "python purple_agents/baseline/sql_detector.py --host 127.0.0.1 --port 8000"
+endpoint = "https://beverages-thumb-encyclopedia-exhaust.trycloudflare.com/detect"
+cmd = "python purple_agents/baseline/sql_detector.py --host 0.0.0.0 --port 8000"
 description = "Baseline SQL injection detector using pattern matching"
 
 # SQL Injection Benchmark Configurations
@@ -19,7 +19,7 @@ description = "Baseline SQL injection detector using pattern matching"
 name = "fixed_mode_small"
 description = "Fixed mode with 50 test cases"
 purple_agent_id = "baseline_sql_detector"
-purple_agent_endpoint = "http://127.0.0.1:8000/detect"
+purple_agent_endpoint = "https://beverages-thumb-encyclopedia-exhaust.trycloudflare.com/detect"
 mode = "fixed"
 test_budget = 50
 timeout_seconds = 180
@@ -30,7 +30,7 @@ random_seed = 42
 name = "fixed_mode_full"
 description = "Fixed mode with 100 test cases"
 purple_agent_id = "baseline_sql_detector"
-purple_agent_endpoint = "http://127.0.0.1:8000/detect"
+purple_agent_endpoint = "https://beverages-thumb-encyclopedia-exhaust.trycloudflare.com/detect"
 mode = "fixed"
 test_budget = 100
 timeout_seconds = 300
@@ -41,7 +41,7 @@ random_seed = 42
 name = "adaptive_mode_small"
 description = "Adaptive mode with 50 test budget"
 purple_agent_id = "baseline_sql_detector"
-purple_agent_endpoint = "http://127.0.0.1:8000/detect"
+purple_agent_endpoint = "https://beverages-thumb-encyclopedia-exhaust.trycloudflare.com/detect"
 mode = "adaptive"
 test_budget = 50
 timeout_seconds = 300
@@ -57,7 +57,7 @@ random_seed = 42
 name = "adaptive_mode_full"
 description = "Adaptive mode with 100 test budget"
 purple_agent_id = "baseline_sql_detector"
-purple_agent_endpoint = "http://127.0.0.1:8000/detect"
+purple_agent_endpoint = "https://beverages-thumb-encyclopedia-exhaust.trycloudflare.com/detect"
 mode = "adaptive"
 test_budget = 100
 timeout_seconds = 300
@@ -73,7 +73,7 @@ random_seed = 42
 name = "python_only"
 description = "Evaluate only on Python code samples"
 purple_agent_id = "baseline_sql_detector"
-purple_agent_endpoint = "http://127.0.0.1:8000/detect"
+purple_agent_endpoint = "https://beverages-thumb-encyclopedia-exhaust.trycloudflare.com/detect"
 mode = "fixed"
 test_budget = 50
 languages = ["python"]
@@ -83,7 +83,7 @@ random_seed = 42
 name = "classic_sqli_only"
 description = "Evaluate only on classic SQL injection category"
 purple_agent_id = "baseline_sql_detector"
-purple_agent_endpoint = "http://127.0.0.1:8000/detect"
+purple_agent_endpoint = "https://beverages-thumb-encyclopedia-exhaust.trycloudflare.com/detect"
 mode = "fixed"
 test_budget = 30
 categories = ["classic_sqli"]
