@@ -1,0 +1,19 @@
+{
+  "true_positives": 42,
+  "true_negatives": 27,
+  "false_positives": 0,
+  "false_negatives": 0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1_score": 1.0,
+  "accuracy": 1.0,
+  "specificity": 1.0,
+  "false_positive_rate": 0.0,
+  "false_negative_rate": 0.0,
+  "competition_score": 100.0,
+  "grade": "A+",
+  "per_category": {},
+  "total_tests": 69,
+  "total_cost_usd": 0.0,
+  "total_latency_ms": 0.0
+}
