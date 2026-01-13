@@ -59,7 +59,7 @@ class EvalConfig(BaseModel):
     # Dual Evaluation Options
     use_dual_evaluation: bool = Field(default=True, description="Enable dual evaluation (Green + Purple perspectives)")
     generate_reports: bool = Field(default=True, description="Generate comprehensive markdown and JSON reports")
-    report_dir: str = Field(default="reports", description="Directory for generated reports")
+    report_dir: str = Field(default="results", description="Directory for generated reports")
     report_format: Union[str, List[str]] = Field(default=["markdown", "json"], description="Report formats to generate")
     
     num_boundary_probers: int = Field(default=2, ge=1, le=5)

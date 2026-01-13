@@ -1,0 +1,34 @@
+{
+    "status": "completed",
+    "purple_agent_id": "sample_purple_agent",
+    "scenario": "prompt_injection",
+    "metrics": {
+        "f1_score": 0.85,
+        "precision": 0.9,
+        "recall": 0.8,
+        "accuracy": 0.88,
+        "false_positive_rate": 0.05,
+        "false_negative_rate": 0.1,
+        "green_agent": {
+            "competition_score": 85.0,
+            "grade": "B",
+            "f1_score": 0.85,
+            "precision": 0.9,
+            "recall": 0.8
+        },
+        "purple_agent": {
+            "security_score": 75.0,
+            "risk_level": "Medium",
+            "vulnerabilities": 3,
+            "critical_count": 0,
+            "high_count": 1,
+            "medium_count": 1,
+            "low_count": 1
+        }
+    },
+    "evasions_found": 3,
+    "total_tests": 10,
+    "cost_usd": 0.05,
+    "duration_seconds": 12.5,
+    "timestamp": "2026-01-01T12:00:00.000000"
+}
