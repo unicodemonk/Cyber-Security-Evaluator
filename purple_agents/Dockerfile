@@ -21,4 +21,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/.well-known/agent-card.json || exit 1
 
 # Run the Purple Agent
-CMD ["python", "purple_agents/home_automation_agent.py", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "home_automation_agent.py", "--host", "0.0.0.0", "--port", "8000"]

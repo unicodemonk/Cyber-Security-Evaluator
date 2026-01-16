@@ -28,7 +28,32 @@ from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import uvicorn
-from a2a.types import AgentCard, AgentSkill, AgentCapabilities
+try:
+    from a2a.types import AgentCard, AgentSkill, AgentCapabilities
+except ImportError:
+    # Stub definitions if a2a.types is not available
+    from pydantic import BaseModel
+    from typing import List, Optional
+    
+    class AgentCapabilities(BaseModel):
+        streaming: bool = False
+    
+    class AgentSkill(BaseModel):
+        id: str
+        name: str
+        description: str = ""
+        tags: List[str] = []
+        examples: List[str] = []
+    
+    class AgentCard(BaseModel):
+        name: str
+        description: str = ""
+        url: str
+        version: str = "1.0.0"
+        default_input_modes: List[str] = ["text"]
+        default_output_modes: List[str] = ["text"]
+        capabilities: Optional[AgentCapabilities] = None
+        skills: List[AgentSkill] = []
 
 
 # Configure logging
