@@ -586,7 +586,7 @@ class CyberSecurityEvaluator(GreenAgent):
             logger.info(f"F1: {result.metrics.f1_score:.3f}, "
                        f"Precision: {result.metrics.precision:.3f}, "
                        f"Recall: {result.metrics.recall:.3f}")
-            logger.info(f"Evasions found: {len(result.evasions)}")
+            logger.info(f"Evasions found: {len(result.get_evasions())}")
 
             return response
 
